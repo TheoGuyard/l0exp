@@ -189,9 +189,9 @@ class Microscopy(Experiment):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("command", type=str, choices=["run", "plot"])
-    parser.add_argument("--config_path", "-c", type=str)
-    parser.add_argument("--result_dir", "-r", type=str)
-    parser.add_argument("--save_dir", "-s", type=str, default=None)
+    parser.add_argument("--config_path", "-c", type=pathlib.Path)
+    parser.add_argument("--result_dir", "-r", type=pathlib.Path)
+    parser.add_argument("--save_dir", "-s", type=pathlib.Path, default=None)
     parser.add_argument("--repeats", "-n", type=int, default=1)
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
