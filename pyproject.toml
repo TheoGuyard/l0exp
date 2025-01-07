@@ -1,0 +1,27 @@
+[project]
+name = "l0exp"
+description = "Numerical experiments for L0-norm problems"
+readme = "README.md"
+license = {file = "LICENSE", content-type = "text/markdown"}
+authors = [{name = "Theo Guyard", email = "theo.guyard.job@gmail.com"}]
+dependencies = [
+    "el0ps",
+    "exprun",
+    "l0bnb",
+    "l0learn",
+    "matplotlib",
+    "numba",
+    "numpy",
+    "pandas",
+    "pyyaml",
+    "scipy",
+    "scikit-learn",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+mip = ["cplex", "docplex", "gurobipy", "Mosek"]
+dev = ["black", "flake8"]
+
+[tool.setuptools.dynamic]
+version = {attr = "experiments.__version__"}
