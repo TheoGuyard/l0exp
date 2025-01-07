@@ -5,11 +5,15 @@ readme = "README.md"
 license = {file = "LICENSE", content-type = "text/markdown"}
 authors = [{name = "Theo Guyard", email = "theo.guyard.job@gmail.com"}]
 dependencies = [
+    "cplex",
+    "docplex",
     "el0ps",
     "exprun",
+    "gurobipy",
     "l0bnb",
     "l0learn",
     "matplotlib",
+    "Mosek",
     "numba",
     "numpy",
     "pandas",
@@ -20,7 +24,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-mip = ["cplex", "docplex", "gurobipy", "Mosek"]
+mip = []
 dev = ["black", "flake8"]
 
 [tool.setuptools.dynamic]

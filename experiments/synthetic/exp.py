@@ -1,4 +1,5 @@
 import argparse
+import pathlib
 import numpy as np
 from exprun import Experiment, Runner
 from el0ps.compilation import CompilableClass, compiled_clone
@@ -169,8 +170,8 @@ class Synthetic(Experiment):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("command", type=str, choices=["run", "plot"])
-    parser.add_argument("--config_path", "-c", type=str)
-    parser.add_argument("--results_dir", "-r", type=str)
+    parser.add_argument("--config_path", "-c", type=pathlib.Path)
+    parser.add_argument("--results_dir", "-r", type=pathlib.Path)
     parser.add_argument("--repeats", "-n", type=int, default=1)
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
