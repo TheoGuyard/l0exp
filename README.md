@@ -7,8 +7,8 @@ Numerical experiments for L0-norm problems
 ## Setup
 
 ```bash
-git clone https://github.com/TheoGuyard/code_2025_bnb-l0problem
-cd code_2025_bnb-l0problem
+git clone https://github.com/TheoGuyard/l0exp
+cd l0exp
 ```
 
 ```bash
