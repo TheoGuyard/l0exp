@@ -91,7 +91,7 @@ class L0bnbSolver(BaseSolver):
         objective_value = (
             datafit.value(A @ solution)
             + lmbd * np.linalg.norm(solution, ord=0)
-            + penalty.value(solution)
+            + sum(penalty.value(i, xi) for i, xi in enumerate(solution))
         )
 
         return Result(

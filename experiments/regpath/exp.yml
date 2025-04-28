@@ -1,6 +1,6 @@
 expname: regpath
 
-dataset: riboflavin
+dataset: datasets/riboflavin.pkl
 datafit: Leastsquares
 penalty: BigmL2norm
 
@@ -50,6 +50,6 @@ path_opts:
   lmbd_max: 1.e-0
   lmbd_min: 1.e-3
   lmbd_num: 31
-  lmbd_scaled: true
+  lmbd_normalized: true
   stop_if_not_optimal: true
   verbose: true
