@@ -29,3 +29,7 @@ dev = ["black", "flake8"]
 
 [tool.setuptools.dynamic]
 version = {attr = "l0exp.__version__"}
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
