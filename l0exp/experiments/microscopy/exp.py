@@ -7,14 +7,14 @@ from exprun import Experiment, Runner
 from el0ps.compilation import CompilableClass, compiled_clone
 from el0ps.path import Path
 
-from experiments.dataset import load_dataset
-from experiments.solver import (
+from l0exp.experiments.dataset import load_dataset
+from l0exp.experiments.solver import (
     get_solver,
     can_handle_instance,
     can_handle_compilation,
     precompile_solver,
 )
-from experiments.instance import calibrate_parameters
+from l0exp.experiments.instance import calibrate_parameters
 
 
 class Microscopy(Experiment):

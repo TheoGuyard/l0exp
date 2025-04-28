@@ -9,14 +9,14 @@ from el0ps.path import Path
 from el0ps.datafit import *  # noqa
 from el0ps.penalty import *  # noqa
 
-from experiments.dataset import load_dataset
-from experiments.solver import (
+from l0exp.experiments.dataset import load_dataset
+from l0exp.experiments.solver import (
     get_solver,
     can_handle_instance,
     can_handle_compilation,
     precompile_solver,
 )
-from experiments.instance import calibrate_parameters, preprocess_data
+from l0exp.experiments.instance import calibrate_parameters, preprocess_data
 
 
 class Regpath(Experiment):

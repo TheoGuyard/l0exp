@@ -4,13 +4,13 @@ import numpy as np
 from exprun import Experiment, Runner
 from el0ps.compilation import CompilableClass, compiled_clone
 
-from experiments.solver import (
+from l0exp.experiments.solver import (
     get_solver,
     can_handle_instance,
     can_handle_compilation,
     precompile_solver,
 )
-from experiments.instance import calibrate_parameters, preprocess_data
+from l0exp.experiments.instance import calibrate_parameters, preprocess_data
 
 
 class Synthetic(Experiment):

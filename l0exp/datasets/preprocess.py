@@ -1,7 +1,7 @@
 import pathlib
 import pickle
 
-from experiments.instance import preprocess_data, calibrate_parameters
+from l0exp.experiments.instance import preprocess_data, calibrate_parameters
 
 
 def get_dataset_path(dataset):

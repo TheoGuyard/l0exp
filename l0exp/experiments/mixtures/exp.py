@@ -20,7 +20,7 @@ from el0ps.penalty import (
 )
 from el0ps.solver import Status
 
-from experiments.solver import (
+from l0exp.experiments.solver import (
     get_solver,
     can_handle_instance,
     can_handle_compilation,

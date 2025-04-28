@@ -28,4 +28,4 @@ mip = []
 dev = ["black", "flake8"]
 
 [tool.setuptools.dynamic]
-version = {attr = "experiments.__version__"}
+version = {attr = "l0exp.__version__"}
