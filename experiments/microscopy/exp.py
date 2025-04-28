@@ -7,6 +7,7 @@ from exprun import Experiment, Runner
 from el0ps.compilation import CompilableClass, compiled_clone
 from el0ps.path import Path
 
+from experiments.dataset import load_dataset
 from experiments.solver import (
     get_solver,
     can_handle_instance,
@@ -20,8 +21,7 @@ class Microscopy(Experiment):
 
     def setup(self) -> None:
 
-        A = np.load(pathlib.Path(__file__).parent.joinpath("dataset", "A.npy"))
-        y = np.load(pathlib.Path(__file__).parent.joinpath("dataset", "y.npy"))
+        A, y = load_dataset(self.config["dataset"])
 
         datafit, penalty, lmbd, x_l0learn = calibrate_parameters(
             "Leastsquares",
@@ -46,7 +46,7 @@ class Microscopy(Experiment):
             self.penalty_compiled = None
 
     def run(self) -> dict:
-        result = {}
+        results = {}
         for solver_name, solver_keys in self.config["solvers"].items():
             if can_handle_instance(
                 solver_keys["solver"],
@@ -68,25 +68,27 @@ class Microscopy(Experiment):
                         self.A,
                         self.lmbd,
                     )
-                    result[solver_name] = path.fit(
+                    result = path.fit(
                         solver,
                         self.datafit_compiled,
                         self.penalty_compiled,
                         self.A,
                     )
                 else:
-                    result[solver_name] = path.fit(
+                    result = path.fit(
                         solver,
                         self.datafit,
                         self.penalty,
                         self.A,
                     )
-                del result[solver_name]["x"]
+                results[solver_name] = {
+                    k: v for k, v in result.items() if k not in ["x", "trace"]
+                }
             else:
                 print("Skipping {}".format(solver_name))
-                result[solver_name] = None
+                results[solver_name] = None
 
-        return result
+        return results
 
     def cleanup(self) -> None:
         pass

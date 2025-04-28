@@ -3,13 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import pathlib
-import pickle
 from exprun import Experiment, Runner
 from el0ps.compilation import CompilableClass, compiled_clone
 from el0ps.path import Path
 from el0ps.datafit import *  # noqa
 from el0ps.penalty import *  # noqa
 
+from experiments.dataset import load_dataset
 from experiments.solver import (
     get_solver,
     can_handle_instance,
@@ -23,14 +23,7 @@ class Regpath(Experiment):
 
     def setup(self) -> None:
 
-        dataset_dir = pathlib.Path(__file__).parent.joinpath("datasets")
-        dataset_path = dataset_dir.joinpath(
-            self.config["dataset"]
-        ).with_suffix(".pkl")
-        with open(dataset_path, "rb") as dataset_file:
-            data = pickle.load(dataset_file)
-            A = data["A"]
-            y = data["y"]
+        A, y = load_dataset(self.config["dataset"])
 
         A, y, _ = preprocess_data(
             A,
@@ -41,32 +34,12 @@ class Regpath(Experiment):
             y_binary=self.config["datafit"] in ["Logistic", "Squaredhinge"],
         )
 
-        found = False
-        for calibration in data["calibrations"]:
-            if (
-                calibration["dataset"]["dataset_name"]
-                == self.config["dataset"]
-                and calibration["dataset"]["datafit_name"]
-                == self.config["datafit"]
-                and calibration["dataset"]["penalty_name"]
-                == self.config["penalty"]
-            ):
-
-                found = True
-                datafit = eval(self.config["datafit"])(y)
-                penalty = eval(self.config["penalty"])(
-                    **calibration["penalty_params"]
-                )
-                lmbd = calibration["lmbd"]
-                x_l0learn = calibration["x_cal"]
-                break
-        if not found:
-            datafit, penalty, lmbd, x_l0learn = calibrate_parameters(
-                self.config["datafit"],
-                self.config["penalty"],
-                A,
-                y,
-            )
+        datafit, penalty, lmbd, x_l0learn = calibrate_parameters(
+            self.config["datafit"],
+            self.config["penalty"],
+            A,
+            y,
+        )
 
         self.x_l0learn = x_l0learn
         self.datafit = datafit
@@ -84,7 +57,7 @@ class Regpath(Experiment):
             self.penalty_compiled = None
 
     def run(self) -> dict:
-        result = {}
+        results = {}
         for solver_name, solver_keys in self.config["solvers"].items():
             if can_handle_instance(
                 solver_keys["solver"],
@@ -106,25 +79,27 @@ class Regpath(Experiment):
                         self.A,
                         self.lmbd,
                     )
-                    result[solver_name] = path.fit(
+                    result = path.fit(
                         solver,
                         self.datafit_compiled,
                         self.penalty_compiled,
                         self.A,
                     )
                 else:
-                    result[solver_name] = path.fit(
+                    result = path.fit(
                         solver,
                         self.datafit,
                         self.penalty,
                         self.A,
                     )
-                del result[solver_name]["x"]
+                results[solver_name] = {
+                    k: v for k, v in result.items() if k not in ["x", "trace"]
+                }
             else:
                 print("Skipping {}".format(solver_name))
-                result[solver_name] = None
+                results[solver_name] = None
 
-        return result
+        return results
 
     def cleanup(self) -> None:
         pass

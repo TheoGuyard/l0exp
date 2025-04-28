@@ -1,6 +1,10 @@
 .DS_Store
 .vscode
 
+**/datasets/**
+!**/datasets/.gitkeep
+!**/datasets/preprocess.py
+
 **/results/*.pkl
 **/results/*.csv
 **/saves/*.pkl
