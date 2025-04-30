@@ -34,14 +34,15 @@ class Regpath(Experiment):
             y_binary=self.config["datafit"] in ["Logistic", "Squaredhinge"],
         )
 
-        datafit, penalty, lmbd, x_l0learn = calibrate_parameters(
+        datafit, penalty, lmbd, x_cal = calibrate_parameters(
+            self.config["calibration"],
             self.config["datafit"],
             self.config["penalty"],
             A,
             y,
         )
 
-        self.x_l0learn = x_l0learn
+        self.x_cal = x_cal
         self.datafit = datafit
         self.penalty = penalty
         self.A = A

@@ -121,6 +121,7 @@ def get_exp_microscopy():
     base_setup = {
         "expname": "microscopy",
         "penalty": "BigmL1norm",
+        "calibration": "l0learn",
         "solvers": {
             "el0ps": {
                 "solver": "el0ps",
@@ -175,6 +176,69 @@ def get_exp_microscopy():
     return exp
 
 
+def get_exp_realworld():
+    exp = {
+        "name": "realworld",
+        "walltime": "01:00:00",
+        "besteffort": False,
+        "production": True,
+        "setups": [],
+        "repeats": 1,
+    }
+
+    time_limit = 60.0
+    relative_gap = 1e-8
+    verbose = False
+
+    setup = {
+        "expname": "realworld",
+        "dataset": "riboflavin",
+        "datafit": "Leastsquares",
+        "penalty": "BigmL2norm",
+        "calibration": "l0learn",
+        "solvers": {
+            "el0ps": {
+                "solver": "el0ps",
+                "params": {
+                    "time_limit": time_limit,
+                    "relative_gap": relative_gap,
+                    "verbose": verbose,
+                },
+            },
+            "l0bnb": {
+                "solver": "l0bnb",
+                "params": {
+                    "time_limit": time_limit,
+                    "relative_gap": relative_gap,
+                    "verbose": verbose,
+                },
+            },
+            "gurobi": {
+                "solver": "mip",
+                "params": {
+                    "optimizer_name": "gurobi",
+                    "time_limit": time_limit,
+                    "relative_gap": relative_gap,
+                    "verbose": verbose,
+                },
+            },
+            "oa": {
+                "solver": "oa",
+                "params": {
+                    "optimizer_name": "gurobi",
+                    "time_limit": time_limit,
+                    "relative_gap": relative_gap,
+                    "verbose": verbose,
+                },
+            },
+        },
+    }
+
+    exp["setups"].append(setup)
+
+    return exp
+
+
 def get_exp_regpath():
     exp = {
         "name": "regpath",
@@ -194,6 +258,7 @@ def get_exp_regpath():
         "dataset": "riboflavin",
         "datafit": "Leastsquares",
         "penalty": "BigmL2norm",
+        "calibration": "l0learn",
         "solvers": {
             "el0ps": {
                 "solver": "el0ps",
@@ -283,6 +348,7 @@ def get_exp_synthetic():
             "s": 10.0,
         },
         "penalty": "BigmL2norm",
+        "calibration": "l0learn",
         "solvers": {
             "el0ps": {
                 "solver": "el0ps",
@@ -331,6 +397,7 @@ def get_exp_synthetic():
 EXPERIMENTS = [
     get_exp_mixtures(),
     get_exp_microscopy(),
+    get_exp_realworld(),
     get_exp_regpath(),
     get_exp_synthetic(),
 ]

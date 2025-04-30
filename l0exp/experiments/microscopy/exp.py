@@ -23,14 +23,15 @@ class Microscopy(Experiment):
 
         A, y = load_dataset(self.config["dataset"])
 
-        datafit, penalty, lmbd, x_l0learn = calibrate_parameters(
+        datafit, penalty, lmbd, x_cal = calibrate_parameters(
+            self.config["calibration"],
             "Leastsquares",
             self.config["penalty"],
             A,
             y,
         )
 
-        self.x_l0learn = x_l0learn
+        self.x_cal = x_cal
         self.datafit = datafit
         self.penalty = penalty
         self.A = A
