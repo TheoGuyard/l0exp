@@ -164,7 +164,11 @@ class Synthetic(Experiment):
         pass
 
     def plot(self, results: list) -> None:
-        raise NotImplementedError
+        for result in results:
+            for solver_name, solver_result in result.items():
+                print(solver_name)
+                print(solver_result)
+                print()
 
 
 if __name__ == "__main__":
