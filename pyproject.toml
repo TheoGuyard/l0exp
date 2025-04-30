@@ -5,8 +5,6 @@ readme = "README.md"
 license = {file = "LICENSE", content-type = "text/markdown"}
 authors = [{name = "Theo Guyard", email = "theo.guyard.job@gmail.com"}]
 dependencies = [
-    "cplex",
-    "docplex",
     "el0ps",
     "exprun",
     "gurobipy",

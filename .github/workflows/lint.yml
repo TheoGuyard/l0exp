@@ -24,4 +24,5 @@ jobs:
         python -m pip install -U .[dev]
     - name: Lint
       run: |
-        flake8 experiments
+        flake8 l0bnb
+        flake8 scripts
