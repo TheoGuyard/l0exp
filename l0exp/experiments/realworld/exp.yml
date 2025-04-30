@@ -1,0 +1,20 @@
+expname: realworld
+
+dataset: l0exp/datasets/riboflavin.pkl
+datafit: Leastsquares
+penalty: BigmL2norm
+calibration: l0learn
+
+solvers:
+  el0ps:
+    solver: el0ps
+    params:
+      time_limit: 60.
+      relative_gap: 1.e-8
+      verbose: true
+  # l0bnb:
+  #   solver: l0bnb
+  #   params:
+  #     time_limit: 60.
+  #     relative_gap: 1.e-8
+  #     verbose: false

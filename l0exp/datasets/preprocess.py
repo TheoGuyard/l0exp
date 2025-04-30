@@ -57,6 +57,7 @@ def calibrate_dataset(dataset):
 
     print("Calibrating dataset...")
     datafit, penalty, lmbd, x_cal = calibrate_parameters(
+        "l0learn",
         dataset["datafit_name"],
         dataset["penalty_name"],
         A,

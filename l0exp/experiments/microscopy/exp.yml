@@ -2,6 +2,7 @@ expname: microscopy
 
 dataset: datasets/microscopy.npz
 penalty: BigmL2norm
+calibration: l0learn
 
 solvers:
   el0ps:

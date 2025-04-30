@@ -1,10 +1,11 @@
+import inspect
 import l0learn
 import numpy as np
 import scipy.sparse as sparse
 from numpy.typing import ArrayLike
 from sklearn.metrics import f1_score
-from el0ps.datafit import Leastsquares, Logistic, Squaredhinge
-from el0ps.penalty import Bigm, BigmL1norm, BigmL2norm, L1norm, L2norm
+from el0ps.datafit import *  # noqa: F401, F403
+from el0ps.penalty import *  # noqa: F401, F403
 
 
 def preprocess_data(
@@ -40,7 +41,42 @@ def preprocess_data(
     return A, y, x_true
 
 
-def calibrate_parameters(datafit_name, penalty_name, A, y, x_true=None):
+def calibrate_parameters(
+    calibration, datafit_name, penalty_name, A, y, x_true=None
+):
+    if calibration == "l0learn":
+        return calibrate_parameters_l0learn(
+            datafit_name, penalty_name, A, y, x_true
+        )
+    elif isinstance(calibration, dict):
+        return calibrate_parameters_hardcoded(
+            calibration, datafit_name, penalty_name, A, y, x_true
+        )
+    else:
+        raise ValueError("Unknown calibration method: {}".format(calibration))
+
+
+def get_datafit(datafit_name, y):
+    return eval(datafit_name)(y)
+
+
+def get_penalty(penalty_name, **kwargs):
+    penalty_type = eval(penalty_name)
+    penalty_sign = inspect.signature(penalty_type.__init__)
+    penalty_args = {
+        name
+        for name, param in penalty_sign.parameters.items()
+        if name != "self"
+        and param.kind in (param.POSITIONAL_OR_KEYWORD, param.KEYWORD_ONLY)
+    }
+    kwargs_filtered = {k: v for k, v in kwargs.items() if k in penalty_args}
+    penalty = penalty_type(**kwargs_filtered)
+    return penalty
+
+
+def calibrate_parameters_l0learn(
+    datafit_name, penalty_name, A, y, x_true=None
+):
     """Give some problem data A and y, datafit and penalty, use `l0learn` to
     find an appropriate L0-norm weight and suitable hyperparameters for the
     penalty function."""
@@ -63,12 +99,7 @@ def calibrate_parameters(datafit_name, penalty_name, A, y, x_true=None):
     m, n = A.shape
 
     # Datafit instanciation
-    if datafit_name == "Leastsquares":
-        datafit = Leastsquares(y)
-    elif datafit_name == "Logistic":
-        datafit = Logistic(y)
-    elif datafit_name == "Squaredhinge":
-        datafit = Squaredhinge(y)
+    datafit = get_datafit(datafit_name, y)
 
     # Fit an approximate regularization path with L0Learn
     cvfit = l0learn.cvfit(
@@ -77,9 +108,6 @@ def calibrate_parameters(datafit_name, penalty_name, A, y, x_true=None):
         bindings[datafit_name],
         bindings[penalty_name],
         intercept=False,
-        num_gamma=1 if bindings[penalty_name] == "L0" else 10,
-        gamma_max=0.0 if bindings[penalty_name] == "L0" else m * 1e-0,
-        gamma_min=0.0 if bindings[penalty_name] == "L0" else m * 1e-4,
         num_folds=5,
     )
 
@@ -100,23 +128,28 @@ def calibrate_parameters(datafit_name, penalty_name, A, y, x_true=None):
             f1 = 0.0 if x_true is None else f1_score(x_true != 0.0, x != 0.0)
             if (f1 > best_f1) or (x_true is None):
                 if cv < best_cv:
-                    best_M = 1.5 * np.max(np.abs(x))
+                    best_M = np.max(np.abs(x))
                     best_lmbda = lmbda
                     best_gamma = gamma
                     best_cv = cv
                     best_f1 = f1
                     best_x = np.copy(x)
 
-    # Penalty instanciation
-    if penalty_name == "Bigm":
-        penalty = Bigm(best_M)
-    elif penalty_name == "BigmL1norm":
-        penalty = BigmL1norm(best_M, best_gamma)
-    elif penalty_name == "BigmL2norm":
-        penalty = BigmL2norm(best_M, best_gamma)
-    elif penalty_name == "L1norm":
-        penalty = L1norm(best_gamma)
-    elif penalty_name == "L2norm":
-        penalty = L2norm(best_gamma)
+    # Penalty instantiation
+    penalty = get_penalty(
+        penalty_name, M=best_M, alpha=best_gamma, beta=best_gamma
+    )
 
     return datafit, penalty, best_lmbda, best_x
+
+
+def calibrate_parameters_hardcoded(
+    calibration, datafit_name, penalty_name, A, y, x_true=None
+):
+    datafit = get_datafit(datafit_name, y)
+    penalty = get_penalty(penalty_name, **calibration["penalty"])
+    lmbd = calibration["lmbd"]
+    if x_true is None:
+        if "x_true" in calibration:
+            x_true = calibration["x_true"]
+    return datafit, penalty, lmbd, x_true

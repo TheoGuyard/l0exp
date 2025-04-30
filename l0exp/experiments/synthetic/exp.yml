@@ -10,6 +10,7 @@ dataset:
   seed: null
 
 penalty: BigmL2norm
+calibration: l0learn
 
 solvers:
   el0ps:
