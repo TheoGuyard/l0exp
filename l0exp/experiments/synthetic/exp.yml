@@ -10,7 +10,10 @@ dataset:
   seed: null
 
 penalty: BigmL2norm
-calibration: l0learn
+
+calibration:
+  method: l0learn
+  kwargs:
 
 solvers:
   el0ps:

@@ -3,7 +3,10 @@ expname: regpath
 dataset: l0exp/datasets/riboflavin.pkl
 datafit: Leastsquares
 penalty: BigmL2norm
-calibration: l0learn
+
+calibration:
+  method: l0learn
+  kwargs:
 
 solvers:
   el0ps:

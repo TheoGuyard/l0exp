@@ -96,12 +96,17 @@ class Synthetic(Experiment):
         A, y, x_true = self.generate_data(**self.config["dataset"])
         A, y, x_true = preprocess_data(A, y, x_true)
         datafit, penalty, lmbd, x_cal = calibrate_parameters(
-            self.config["calibration"],
+            self.config["calibration"]["method"],
             "Leastsquares",
             self.config["penalty"],
             A,
             y,
             x_true,
+            **(
+                self.config["calibration"]["kwargs"]
+                if self.config["calibration"]["kwargs"] is not None
+                else {}
+            ),
         )
 
         self.x_true = x_true

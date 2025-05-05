@@ -121,7 +121,7 @@ def get_exp_microscopy():
     base_setup = {
         "expname": "microscopy",
         "penalty": "BigmL1norm",
-        "calibration": "l0learn",
+        "calibration": {"method": "l0learn", "kwargs": {}},
         "solvers": {
             "el0ps": {
                 "solver": "el0ps",
@@ -195,7 +195,13 @@ def get_exp_realworld():
         "dataset": "riboflavin",
         "datafit": "Leastsquares",
         "penalty": "BigmL2norm",
-        "calibration": "l0learn",
+        "calibration": {
+            "method": "cv",
+            "kwargs": {
+                "criterion": "bic",
+                "time_limit": 60.0,
+            },
+        },
         "solvers": {
             "el0ps": {
                 "solver": "el0ps",
@@ -258,7 +264,7 @@ def get_exp_regpath():
         "dataset": "riboflavin",
         "datafit": "Leastsquares",
         "penalty": "BigmL2norm",
-        "calibration": "l0learn",
+        "calibration": {"method": "l0learn", "kwargs": {}},
         "solvers": {
             "el0ps": {
                 "solver": "el0ps",
@@ -348,7 +354,7 @@ def get_exp_synthetic():
             "s": 10.0,
         },
         "penalty": "BigmL2norm",
-        "calibration": "l0learn",
+        "calibration": {"method": "l0learn", "kwargs": {}},
         "solvers": {
             "el0ps": {
                 "solver": "el0ps",
@@ -491,14 +497,14 @@ def slurm_exp_steam(experiment, configs_path):
             "#SBATCH -t {}".format(experiment["walltime"]),
             "#SBATCH --array=0-{}".format(num_configs - 1),
             "#SBATCH --account=def-vidalthi",
-            'config_path=$(sed -n "$((SLURM_ARRAY_TASK_ID+1))p" {})'.format(
+            'cp=$(sed -n "$((SLURM_ARRAY_TASK_ID+1))p" {})'.format(
                 configs_path
             ),
             "set -xv",
             "source {}/.bash_profile".format(HOME_DIR),
             "module load python mpi4py gurobi",
             "source {}/.venv/bin/activate".format(HOME_DIR),
-            "{} {}/{}/exp.py run -r {}/{}/results -c $config_path -n {} -v".format(  # noqa: E501
+            "{} {}/{}/exp.py run -r {}/{}/results -c $cp -n {} -v".format(
                 "python",
                 EXPS_DIR,
                 experiment["name"],
