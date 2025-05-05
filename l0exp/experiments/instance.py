@@ -2,10 +2,14 @@ import inspect
 import l0learn
 import numpy as np
 import scipy.sparse as sparse
+from itertools import product
 from numpy.typing import ArrayLike
 from sklearn.metrics import f1_score
 from el0ps.datafit import *  # noqa: F401, F403
 from el0ps.penalty import *  # noqa: F401, F403
+from el0ps.solver import BnbSolver
+from el0ps.path import Path
+from el0ps.utils import compute_lmbd_max
 
 
 def preprocess_data(
@@ -42,18 +46,18 @@ def preprocess_data(
 
 
 def calibrate_parameters(
-    calibration, datafit_name, penalty_name, A, y, x_true=None
+    method, datafit_name, penalty_name, A, y, x_true=None, **kwargs
 ):
-    if calibration == "l0learn":
-        return calibrate_parameters_l0learn(
-            datafit_name, penalty_name, A, y, x_true
-        )
-    elif isinstance(calibration, dict):
-        return calibrate_parameters_hardcoded(
-            calibration, datafit_name, penalty_name, A, y, x_true
-        )
+    if method == "l0learn":
+        calibration = calibrate_parameters_l0learn
+    elif method == "cv":
+        calibration = calibrate_parameters_cv
+    elif method == "hardcoded":
+        calibration = calibrate_parameters_hardcoded
     else:
-        raise ValueError("Unknown calibration method: {}".format(calibration))
+        raise ValueError("Unknown calibration method: {}".format(method))
+
+    return calibration(datafit_name, penalty_name, A, y, x_true, **kwargs)
 
 
 def get_datafit(datafit_name, y):
@@ -143,13 +147,133 @@ def calibrate_parameters_l0learn(
     return datafit, penalty, best_lmbda, best_x
 
 
+def calibrate_parameters_cv(
+    datafit_name,
+    penalty_name,
+    A,
+    y,
+    x_true=None,
+    criterion: str = "bic",
+    time_limit: float = 60.0,
+    **kwargs,
+):
+
+    m, n = A.shape
+
+    datafit = get_datafit(datafit_name, y)
+
+    if datafit_name == "Leastsquares":
+        scaling = 2.0 * m
+    elif datafit_name == "Logistic":
+        scaling = 1.0 * m
+    elif datafit_name == "Squaredhinge":
+        scaling = 1.0 * m
+    else:
+        raise ValueError(f"Unknown datafit name: {datafit_name}")
+
+    x_lstsq = np.linalg.lstsq(A, y, rcond=None)[0]
+    M = np.max(np.abs(x_lstsq))
+
+    grid_params = {}
+
+    if penalty_name == "Bigm":
+        grid_params["M"] = [M, 10.0 * M, 100.0 * M, 1000.0 * M]
+    elif penalty_name == "BigmL1norm":
+        grid_params["M"] = [M, 10.0 * M, 100.0 * M, 1000.0 * M]
+        grid_params["alpha"] = [0.1 * m, 1.0 * m, 10.0 * m, 100.0 * m]
+    elif penalty_name == "BigmL2norm":
+        grid_params["M"] = [M, 10.0 * M, 100.0 * M, 1000.0 * M]
+        grid_params["beta"] = [0.1 * m, 1.0 * m, 10.0 * m, 100.0 * m]
+    elif penalty_name == "BigmL1L2norm":
+        grid_params["M"] = [M, 10.0 * M, 100.0 * M, 1000.0 * M]
+        grid_params["alpha"] = [0.001 * m, 0.01 * m, 0.1 * m, 1.0 * m]
+        grid_params["beta"] = [0.1 * m, 1.0 * m, 10.0 * m, 100.0 * m]
+    elif penalty_name == "L1L2norm":
+        grid_params["alpha"] = [0.1 * m, 1.0 * m, 10.0 * m, 100.0 * m]
+        grid_params["beta"] = [0.1 * m, 1.0 * m, 10.0 * m, 100.0 * m]
+    else:
+        raise ValueError(f"Unknown penalty name: {penalty_name}")
+
+    grid_keys = list(grid_params.keys())
+    grid_vals = list(grid_params.values())
+    grid_params = [dict(zip(grid_keys, c)) for c in list(product(*grid_vals))]
+
+    solver = BnbSolver(time_limit=time_limit)
+
+    best_found = False
+    best_criterion = None
+    best_params = None
+    best_loss = None
+    best_nnnz = None
+    best_lmbd = None
+    best_lratio = None
+    best_x = None
+
+    for params in grid_params:
+        print(f"Params: {params}")
+        penalty = get_penalty(penalty_name, **params)
+        lmbdmax = compute_lmbd_max(datafit, penalty, A)
+        path = Path(**kwargs)
+        results = path.fit(solver, datafit, penalty, A)
+
+        for lmbd, result in results.items():
+
+            loss = datafit.value(A @ result.x)
+            nnnz = np.count_nonzero(result.x)
+
+            if criterion == "aic":
+                criterion_value = 2.0 * scaling * loss + 2.0 * nnnz
+            elif criterion == "bic":
+                criterion_value = 2.0 * scaling * loss + np.log(m) * nnnz
+            else:
+                raise ValueError(f"Unknown criterion: {criterion}")
+
+            if best_criterion is None:
+                best_found = True
+            else:
+                if np.abs(criterion_value - best_criterion) < 1e-5:
+                    if lmbd > best_lmbd:
+                        best_found = True
+                elif criterion_value < best_criterion:
+                    best_found = True
+
+            if best_found:
+                best_found = False
+                best_criterion = criterion_value
+                best_params = params
+                best_loss = loss
+                best_nnnz = nnnz
+                best_lmbd = lmbd
+                best_lratio = lmbd / lmbdmax
+                best_x = np.copy(result.x)
+                print("Found new best criterion")
+                print(f"  {criterion}\t: {best_criterion}")
+                print(f"  lambda: {best_lmbd}")
+                print(f"  lratio: {best_lratio}")
+                print(f"  loss  : {best_loss}")
+                print(f"  nnnz  : {best_nnnz}")
+
+    print()
+    print("Overall best criterion")
+    print(f"  {criterion}\t: {best_criterion}")
+    print(f"  lambda: {best_lmbd}")
+    print(f"  lratio: {best_lratio}")
+    print(f"  loss  : {best_loss}")
+    print(f"  nnnz  : {best_nnnz}")
+
+    return datafit, get_penalty(penalty_name, **best_params), best_lmbd, best_x
+
+
 def calibrate_parameters_hardcoded(
-    calibration, datafit_name, penalty_name, A, y, x_true=None
+    datafit_name,
+    penalty_name,
+    A,
+    y,
+    x_true=None,
+    calibration={},
 ):
     datafit = get_datafit(datafit_name, y)
-    penalty = get_penalty(penalty_name, **calibration["penalty"])
-    lmbd = calibration["lmbd"]
-    if x_true is None:
-        if "x_true" in calibration:
-            x_true = calibration["x_true"]
-    return datafit, penalty, lmbd, x_true
+    penalty = get_penalty(penalty_name, **calibration["penalty_params"])
+    lmbd = calibration["lambda"]
+    x_cal = calibration["x_cal"] if "x_cal" in calibration else None
+    return datafit, penalty, lmbd, x_cal

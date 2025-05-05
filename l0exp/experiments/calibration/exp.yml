@@ -1,0 +1,12 @@
+expname: calibration
+
+dataset: l0exp/datasets/riboflavin.pkl
+datafit: Leastsquares
+penalty: Bigm
+
+calibration:
+  method: cv
+  kwargs:
+    # verbose: false
+    criterion: bic
+    time_limit: 60.

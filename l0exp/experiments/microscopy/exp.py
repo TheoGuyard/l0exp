@@ -24,11 +24,16 @@ class Microscopy(Experiment):
         A, y = load_dataset(self.config["dataset"])
 
         datafit, penalty, lmbd, x_cal = calibrate_parameters(
-            self.config["calibration"],
+            self.config["calibration"]["method"],
             "Leastsquares",
             self.config["penalty"],
             A,
             y,
+            **(
+                self.config["calibration"]["kwargs"]
+                if self.config["calibration"]["kwargs"] is not None
+                else {}
+            ),
         )
 
         self.x_cal = x_cal
