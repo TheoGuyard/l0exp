@@ -11,7 +11,7 @@ from copy import deepcopy
 # ----- Path variables ----- #
 
 SRC_PATH = "~/Documents/Github/l0exp"
-DST_PATH = "tguyard@cedar.alliancecan.ca:scratch"
+DST_PATH = "tguyard@narval.alliancecan.ca:scratch"
 HOME_DIR = "/home/tguyard"
 VENV_DIR = "/home/tguyard/.venv"
 LOGS_DIR = "/home/tguyard/logs"
@@ -196,11 +196,8 @@ def get_exp_realworld():
         "datafit": "Leastsquares",
         "penalty": "BigmL2norm",
         "calibration": {
-            "method": "cv",
-            "kwargs": {
-                "criterion": "bic",
-                "time_limit": 60.0,
-            },
+            "method": "l0learn",
+            "kwargs": {},
         },
         "solvers": {
             "el0ps": {
@@ -494,7 +491,8 @@ def slurm_exp_steam(experiment, configs_path):
             "#SBATCH -J l0exp-{}".format(experiment["name"]),
             "#SBATCH -o {}/%x.%j.out".format(LOGS_DIR),
             "#SBATCH -e {}/%x.%j.err".format(LOGS_DIR),
-            "#SBATCH -t {}".format(experiment["walltime"]),
+            "#SBATCH -t {}".format(experiment["walltime"]) if "walltime" in experiment else "",  # noqa
+            "#SBATCH --mem={}".format(experiment["memory"]) if "memory" in experiment else "",  # noqa
             "#SBATCH --array=0-{}".format(num_configs - 1),
             "#SBATCH --account=def-vidalthi",
             'cp=$(sed -n "$((SLURM_ARRAY_TASK_ID+1))p" {})'.format(
@@ -625,7 +623,7 @@ def make(system):
 
 def receive(expname):
     for experiment in EXPERIMENTS:
-        if (expname is None) or experiment["name"] == expname:
+        if (expname is None) or (experiment["name"] == expname):
             print(f"receive {experiment['name']}")
             results_src_path = pathlib.Path(
                 DST_PATH,
@@ -660,7 +658,7 @@ if __name__ == "__main__":
         "cmd", choices=["send", "install", "make", "receive", "clean"]
     )
     parser.add_argument("-s", "--system", default="slurm")
-    parser.add_argument("-n", "--expname", default=None)
+    parser.add_argument("-e", "--expname", default=None)
     args = parser.parse_args()
 
     if args.cmd == "send":

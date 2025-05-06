@@ -134,6 +134,7 @@ def can_handle_instance(
             ] and penalty_name in [
                 "Bigm",
                 "BigmL1norm",
+                "BigmL1L2norm",
                 "BigmL2norm",
                 "Bounds",
                 "L2norm",
@@ -147,6 +148,7 @@ def can_handle_instance(
             ] and penalty_name in [
                 "Bigm",
                 "BigmL1norm",
+                "BigmL1L2norm",
                 "BigmL2norm",
                 "Bounds",
                 "L2norm",
@@ -161,6 +163,7 @@ def can_handle_instance(
             ] and penalty_name in [
                 "Bigm",
                 "BigmL1norm",
+                "BigmL1L2norm",
                 "BigmL2norm",
                 "Bounds",
                 "L2norm",
