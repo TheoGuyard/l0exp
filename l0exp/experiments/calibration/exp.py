@@ -34,7 +34,7 @@ class Calibration(Experiment):
 
         results = {
             "penalty_params": penalty.params_to_dict(),
-            "lambda": lmbd,
+            "lmbd": lmbd,
             "x_cal": x_cal,
         }
 

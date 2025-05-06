@@ -5,7 +5,7 @@ datafit: Leastsquares
 penalty: BigmL2norm
 
 calibration:
-  method: l0learn
+  method: cv
   kwargs:
 
 solvers:

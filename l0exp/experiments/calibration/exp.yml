@@ -1,12 +1,12 @@
 expname: calibration
 
-dataset: l0exp/datasets/riboflavin.pkl
-datafit: Leastsquares
-penalty: Bigm
+dataset: l0exp/datasets/arcene.pkl
+datafit: Squaredhinge
+penalty: BigmL1L2norm
 
 calibration:
   method: cv
   kwargs:
-    # verbose: false
+    verbose: true
     criterion: bic
     time_limit: 60.

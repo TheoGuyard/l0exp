@@ -11,6 +11,8 @@ from el0ps.solver import BnbSolver
 from el0ps.path import Path
 from el0ps.utils import compute_lmbd_max
 
+from l0exp.bigml1l2norm import BigmL1L2norm  # noqa: F401
+
 
 def preprocess_data(
     A: ArrayLike,
@@ -270,10 +272,10 @@ def calibrate_parameters_hardcoded(
     A,
     y,
     x_true=None,
-    calibration={},
+    penalty_params=None,
+    lmbd=None,
+    x_cal=None,
 ):
     datafit = get_datafit(datafit_name, y)
-    penalty = get_penalty(penalty_name, **calibration["penalty_params"])
-    lmbd = calibration["lambda"]
-    x_cal = calibration["x_cal"] if "x_cal" in calibration else None
+    penalty = get_penalty(penalty_name, **penalty_params)
     return datafit, penalty, lmbd, x_cal
