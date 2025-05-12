@@ -68,6 +68,14 @@ def get_exp_mixtures():
                     "verbose": verbose,
                 },
             },
+            "mimosa": {
+                "solver": "mimosa",
+                "params": {
+                    "time_limit": time_limit,
+                    "relative_gap": relative_gap,
+                    "verbose": verbose,
+                },
+            },
             "gurobi": {
                 "solver": "mip",
                 "params": {
@@ -139,6 +147,14 @@ def get_exp_microscopy():
                     "verbose": verbose,
                 },
             },
+            "mimosa": {
+                "solver": "mimosa",
+                "params": {
+                    "time_limit": time_limit,
+                    "relative_gap": relative_gap,
+                    "verbose": verbose,
+                },
+            },
             "gurobi": {
                 "solver": "mip",
                 "params": {
@@ -192,7 +208,7 @@ def get_exp_realworld():
 
     setup = {
         "expname": "realworld",
-        "dataset": "riboflavin",
+        "dataset": "l0exp/datasets/riboflavin.pkl",
         "datafit": "Leastsquares",
         "penalty": "BigmL2norm",
         "calibration": {
@@ -210,6 +226,14 @@ def get_exp_realworld():
             },
             "l0bnb": {
                 "solver": "l0bnb",
+                "params": {
+                    "time_limit": time_limit,
+                    "relative_gap": relative_gap,
+                    "verbose": verbose,
+                },
+            },
+            "mimosa": {
+                "solver": "mimosa",
                 "params": {
                     "time_limit": time_limit,
                     "relative_gap": relative_gap,
@@ -258,7 +282,7 @@ def get_exp_regpath():
 
     base_setup = {
         "expname": "regpath",
-        "dataset": "riboflavin",
+        "dataset": "l0exp/datasets/riboflavin.pkl",
         "datafit": "Leastsquares",
         "penalty": "BigmL2norm",
         "calibration": {"method": "l0learn", "kwargs": {}},
@@ -273,6 +297,14 @@ def get_exp_regpath():
             },
             "l0bnb": {
                 "solver": "l0bnb",
+                "params": {
+                    "time_limit": time_limit,
+                    "relative_gap": relative_gap,
+                    "verbose": verbose,
+                },
+            },
+            "mimosa": {
+                "solver": "mimosa",
                 "params": {
                     "time_limit": time_limit,
                     "relative_gap": relative_gap,
@@ -363,6 +395,14 @@ def get_exp_synthetic():
             },
             "l0bnb": {
                 "solver": "l0bnb",
+                "params": {
+                    "time_limit": time_limit,
+                    "relative_gap": relative_gap,
+                    "verbose": verbose,
+                },
+            },
+            "mimosa": {
+                "solver": "mimosa",
                 "params": {
                     "time_limit": time_limit,
                     "relative_gap": relative_gap,
@@ -500,7 +540,7 @@ def slurm_exp_steam(experiment, configs_path):
             ),
             "set -xv",
             "source {}/.bash_profile".format(HOME_DIR),
-            "module load python mpi4py gurobi",
+            "module load armadillo gurobi mpi4py openblas python scalapack",
             "source {}/.venv/bin/activate".format(HOME_DIR),
             "{} {}/{}/exp.py run -r {}/{}/results -c $cp -n {} -v".format(
                 "python",
