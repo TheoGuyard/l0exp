@@ -1,3 +1,8 @@
+import os
+import pathlib
+import re
+import shutil
+import subprocess
 import sys
 import numpy as np
 from typing import Union
@@ -104,6 +109,113 @@ class L0bnbSolver(BaseSolver):
         )
 
 
+class MimosaSolver(BaseSolver):
+
+    def __init__(
+        self,
+        integrality_tol: float = 0.0,
+        relative_gap: float = 1e-8,
+        absolute_gap: float = 0.0,
+        time_limit: float = float(sys.maxsize),
+        verbose: bool = False,
+    ):
+        self.integrality_tol = integrality_tol
+        self.relative_gap = relative_gap
+        self.absolute_gap = absolute_gap
+        self.time_limit = time_limit
+        self.verbose = verbose
+
+        if 'MIMOSA_BIN' not in os.environ:
+            raise ValueError("MIMOSA_BIN environment variable is not set.")
+        self.MIMOSA_BIN = pathlib.Path(os.environ['MIMOSA_BIN']).absolute()
+
+        if 'MIMOSA_TMP' not in os.environ:
+            raise ValueError("MIMOSA_TMP environment variable is not set.")
+        self.MIMOSA_TMP = pathlib.Path(os.environ['MIMOSA_TMP']).absolute()
+
+    def __str__(self):
+        return "MimosaSolver"
+
+    def solve(
+        self,
+        datafit: Leastsquares,
+        penalty: Bigm,
+        A: ArrayLike,
+        lmbd: float,
+        x_init: Union[ArrayLike, None] = None,
+    ) -> Result:
+
+        assert isinstance(datafit, Leastsquares)
+        assert isinstance(penalty, Bigm)
+
+        # Clean and create MIMOSA_TMP
+        if self.MIMOSA_TMP.is_dir():
+            shutil.rmtree(self.MIMOSA_TMP)
+        self.MIMOSA_TMP.mkdir()
+
+        # Save instance to MIMOSA_TMP
+        np.savetxt(self.MIMOSA_TMP / 'A.dat', A)
+        np.savetxt(self.MIMOSA_TMP / 'y.dat', datafit.y)
+        np.savetxt(self.MIMOSA_TMP / 'mu.dat', [lmbd])
+
+        # Mimosa command
+        options = "l2pl0 bb_activeset_warm 0 0.0 0 heap_on_lb 0 max_xi"
+        results = self.MIMOSA_TMP / "results"
+        command = "echo {} | {} {} {}.csv {} | tee {}.log".format(
+            self.MIMOSA_TMP,
+            self.MIMOSA_BIN,
+            options,
+            results,
+            self.time_limit,
+            results,
+        )
+
+        # Run Mimosa
+        subprocess.run(command, shell=True)
+
+        # Recover results
+        output = results.with_suffix(".log")
+        if output.is_file():
+            with open(output, "r") as f:
+                content = f.read()
+            status = Status.OPTIMAL
+            match = re.search(r"temps_d'execution:\s*([\d.]+)", content)
+            solve_time = float(match.group(1)) if match else None
+            match = re.search(r"Node_Number_BB:\s*(\d+)", content)
+            iter_count = int(match.group(1)) if match else None
+            match = re.search(r"x_sol\s*((?:\s*-?\d*\.?\d+\s*)+)", content, re.DOTALL)  # noqa: E501
+            if match:
+                x_lines = match.group(1)
+                x_vals = list(map(float, re.findall(r"-?\d*\.?\d+", x_lines)))
+                x = np.array(x_vals)
+            else:
+                x = np.zeros(A.shape[1])
+            objective_value = (
+                datafit.value(A @ x)
+                + lmbd * np.linalg.norm(x, ord=0)
+                + sum(penalty.value(i, xi) for i, xi in enumerate(x))
+            )
+        else:
+            status = Status.UNKNOWN
+            solve_time = np.nan
+            iter_count = -1
+            x = np.zeros(A.shape[1])
+            objective_value = np.nan
+
+        # Clean MIMOSA_TMP
+        if self.MIMOSA_TMP.is_dir():
+            shutil.rmtree(self.MIMOSA_TMP)
+
+        return Result(
+            status,
+            solve_time,
+            iter_count,
+            x,
+            objective_value,
+            None,
+        )
+
+
 def get_solver(solver_name: str, solver_opts: dict) -> BaseSolver:
     if solver_name == "el0ps":
         return BnbSolver(**solver_opts)
@@ -113,6 +225,8 @@ def get_solver(solver_name: str, solver_opts: dict) -> BaseSolver:
         return OaSolver(**solver_opts)
     elif solver_name == "l0bnb":
         return L0bnbSolver(**solver_opts)
+    elif solver_name == "mimosa":
+        return MimosaSolver(**solver_opts)
     else:
         raise ValueError(f"Unknown solver {solver_name}.")
 
@@ -180,6 +294,8 @@ def can_handle_instance(
             "BigmL2norm",
             "L2norm",
         ]
+    elif solver_name == "mimosa":
+        return (datafit_name == "Leastsquares") and (penalty_name == "Bigm")
     else:
         raise ValueError(f"Unknown solver {solver_name}.")
 
