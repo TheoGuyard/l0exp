@@ -13,9 +13,9 @@ These problems aim at minimizing a trade off between a data-fidelity function $f
 The additional penalty function $h$ can be used to enforce other desirable properties on the solutions and is involved in the construction of efficient solution methods.
 
 These experiments are linked to the following papers:
-- "El0ps: An Exact L0-regularized Problems Solver". C. Elvira, T. Guyard, C. Herzet, Preprint 2025  [[arXiv](https://arxiv.org/abs/2506.06373)]
-- "A Generic Branch-and-Bound Algorithm for L0-Penalized Problems". C. Elvira, T. Guyard, C. Herzet, Preprint 2025 [[arXiv](https://arxiv.org/abs/2506.03974)]
-- "A New Branch-and-Bound Pruning Framework for L0-Regularized Problems". T. Guyard, C. Elvira, C. Herzet, ICML 2024 [[arXiv](https://arxiv.org/abs/2406.03504)] 
+- "El0ps: An Exact L0-regularized Problems Solver" [[arXiv](https://arxiv.org/abs/2506.06373)]
+- "A Generic Branch-and-Bound Algorithm for L0-Penalized Problems" [[arXiv](https://arxiv.org/abs/2506.03974)]
+- "A New Branch-and-Bound Pruning Framework for L0-Regularized Problems" [[arXiv](https://arxiv.org/abs/2406.03504)] 
 
 
 ## Setup
