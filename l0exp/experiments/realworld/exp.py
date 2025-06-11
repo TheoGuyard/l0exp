@@ -1,6 +1,4 @@
-import argparse
-import pathlib
-from exprun import Experiment, Runner
+from exprun import Experiment
 from el0ps.compilation import CompilableClass, compiled_clone
 
 from l0exp.experiments.dataset import load_dataset
@@ -106,22 +104,3 @@ class Realworld(Experiment):
                 print(solver_name)
                 print(solver_result)
                 print()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("command", type=str, choices=["run", "plot"])
-    parser.add_argument("--config_path", "-c", type=pathlib.Path)
-    parser.add_argument("--results_dir", "-r", type=pathlib.Path)
-    parser.add_argument("--repeats", "-n", type=int, default=1)
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
-
-    runner = Runner(verbose=args.verbose)
-
-    if args.command == "run":
-        runner.run(Realworld, args.config_path, args.results_dir, args.repeats)
-    elif args.command == "plot":
-        runner.plot(Realworld, args.config_path, args.results_dir)
-    else:
-        raise ValueError(f"Unknown command {args.command}.")

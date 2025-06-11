@@ -1,7 +1,5 @@
-import argparse
-import pathlib
 import numpy as np
-from exprun import Experiment, Runner
+from exprun import Experiment
 from el0ps.compilation import CompilableClass, compiled_clone
 
 from l0exp.experiments.solver import (
@@ -17,7 +15,6 @@ class Synthetic(Experiment):
 
     def generate_data(
         self,
-        t: float = 0.0,
         k: int = 10,
         m: int = 500,
         n: int = 1000,
@@ -33,8 +30,7 @@ class Synthetic(Experiment):
 
         - :math:`x \in R^n` is the ground truth vector with :math:`k`
         non-zero entries randomly distributed over :math:`\{1,\dots,n\}` with
-        i.i.d. amplitude :math:`x_i = u_i` where `u_i ~ N(0,t)`. When
-        :math:`t = 0`, the amplitudes are drawn randomly from :math:`\{-1,1\}`.
+        unit amplitude of random sign.
 
         - :math:`A \in R^{m \times n}` is a design matrix with i.i.d. columns
         drawn as :math:`a_i \sim N(0,K)` where :math:`K_{ij} = r^{|i-j|}`.
@@ -44,8 +40,6 @@ class Synthetic(Experiment):
 
         Parameters
         ----------
-        t : float
-            Standard deviation of the ground truth non-zero entries amplitude.
         k : int
             Number of non-zero entries in the ground truth.
         m : int
@@ -58,7 +52,6 @@ class Synthetic(Experiment):
             Signal-to-noise ratio of the noise.
         """
 
-        assert t >= 0.0
         assert n >= k > 0
         assert m > 0
         assert 0.0 <= r < 1.0
@@ -70,10 +63,7 @@ class Synthetic(Experiment):
         # Ground truth
         x = np.zeros(n)
         S = np.random.choice(n, size=k, replace=False)
-        if t == 0.0:
-            x[S] = np.sign(np.random.randn(k))
-        else:
-            x[S] = np.random.normal(0.0, t, k)
+        x[S] = np.sign(np.random.randn(k))
 
         # Design matrix
         M = np.zeros(n)
@@ -175,22 +165,3 @@ class Synthetic(Experiment):
                 print(solver_name)
                 print(solver_result)
                 print()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("command", type=str, choices=["run", "plot"])
-    parser.add_argument("--config_path", "-c", type=pathlib.Path)
-    parser.add_argument("--results_dir", "-r", type=pathlib.Path)
-    parser.add_argument("--repeats", "-n", type=int, default=1)
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
-
-    runner = Runner(verbose=args.verbose)
-
-    if args.command == "run":
-        runner.run(Synthetic, args.config_path, args.results_dir, args.repeats)
-    elif args.command == "plot":
-        runner.plot(Synthetic, args.config_path, args.results_dir)
-    else:
-        raise ValueError(f"Unknown command {args.command}.")

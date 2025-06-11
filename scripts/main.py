@@ -111,87 +111,6 @@ def get_exp_mixtures():
         exp["setups"].append(setup)
     return exp
 
-
-def get_exp_microscopy():
-    exp = {
-        "name": "microscopy",
-        "walltime": "11:00:00",
-        "besteffort": True,
-        "production": True,
-        "setups": [],
-        "repeats": 10,
-    }
-
-    time_limit = 60.0
-    relative_gap = 1e-8
-    verbose = False
-
-    base_setup = {
-        "expname": "microscopy",
-        "penalty": "BigmL1norm",
-        "calibration": {"method": "l0learn", "kwargs": {}},
-        "solvers": {
-            "el0ps": {
-                "solver": "el0ps",
-                "params": {
-                    "time_limit": time_limit,
-                    "relative_gap": relative_gap,
-                    "verbose": verbose,
-                },
-            },
-            "l0bnb": {
-                "solver": "l0bnb",
-                "params": {
-                    "time_limit": time_limit,
-                    "relative_gap": relative_gap,
-                    "verbose": verbose,
-                },
-            },
-            "mimosa": {
-                "solver": "mimosa",
-                "params": {
-                    "time_limit": time_limit,
-                    "relative_gap": relative_gap,
-                    "verbose": verbose,
-                },
-            },
-            "gurobi": {
-                "solver": "mip",
-                "params": {
-                    "optimizer_name": "gurobi",
-                    "time_limit": time_limit,
-                    "relative_gap": relative_gap,
-                    "verbose": verbose,
-                },
-            },
-            "oa": {
-                "solver": "oa",
-                "params": {
-                    "optimizer_name": "gurobi",
-                    "time_limit": time_limit,
-                    "relative_gap": relative_gap,
-                    "verbose": verbose,
-                },
-            },
-        },
-        "path_opts": {
-            "lmbd_max": 1e-0,
-            "lmbd_min": 1e-3,
-            "lmbd_num": 31,
-            "lmbd_scaled": True,
-            "stop_if_not_optimal": True,
-            "verbose": True,
-        },
-    }
-
-    for penalty in ["BigmL1norm", "BigmL2norm"]:
-        setup = deepcopy(base_setup)
-        setup["penalty"] = penalty
-        exp["setups"].append(setup)
-
-    return exp
-
-
 def get_exp_realworld():
     exp = {
         "name": "realworld",
@@ -439,7 +358,6 @@ def get_exp_synthetic():
 
 EXPERIMENTS = [
     get_exp_mixtures(),
-    get_exp_microscopy(),
     get_exp_realworld(),
     get_exp_regpath(),
     get_exp_synthetic(),
@@ -489,9 +407,7 @@ def oar_exp_steam(experiment, configs_path):
             "source {}/.profile".format(HOME_DIR),
             "module load conda gurobi cplex",
             "conda activate l0exp",
-            "{} {}/{}/exp.py run -r {}/{}/results -c $* -n {} -v".format(
-                "python",
-                EXPS_DIR,
+            "python l0exp {} run -r {}/{}/results -c $* -n {} -v".format(
                 experiment["name"],
                 EXPS_DIR,
                 experiment["name"],
@@ -542,9 +458,7 @@ def slurm_exp_steam(experiment, configs_path):
             "source {}/.bash_profile".format(HOME_DIR),
             "module load armadillo gurobi mpi4py openblas python scalapack",
             "source {}/.venv/bin/activate".format(HOME_DIR),
-            "{} {}/{}/exp.py run -r {}/{}/results -c $cp -n {} -v".format(
-                "python",
-                EXPS_DIR,
+            "python l0exp {} run -r {}/{}/results -c $cp -n {} -v".format(
                 experiment["name"],
                 EXPS_DIR,
                 experiment["name"],
