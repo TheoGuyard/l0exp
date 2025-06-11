@@ -1,7 +1,6 @@
 expname: synthetic
 
 dataset:
-  t: 0.
   k: 5
   m: 100
   n: 200
@@ -12,8 +11,9 @@ dataset:
 penalty: BigmL2norm
 
 calibration:
-  method: l0learn
+  method: cv
   kwargs:
+    time_limit: 60.
 
 solvers:
   el0ps:

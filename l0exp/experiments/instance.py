@@ -11,8 +11,6 @@ from el0ps.solver import BnbSolver
 from el0ps.path import Path
 from el0ps.utils import compute_lmbd_max
 
-from l0exp.bigml1l2norm import BigmL1L2norm  # noqa: F401
-
 
 def preprocess_data(
     A: ArrayLike,
@@ -50,6 +48,8 @@ def preprocess_data(
 def calibrate_parameters(
     method, datafit_name, penalty_name, A, y, x_true=None, **kwargs
 ):
+
+    print("Calibrating parameters with method: {}".format(method))
     if method == "l0learn":
         calibration = calibrate_parameters_l0learn
     elif method == "cv":
@@ -200,22 +200,18 @@ def calibrate_parameters_cv(
     grid_vals = list(grid_params.values())
     grid_params = [dict(zip(grid_keys, c)) for c in list(product(*grid_vals))]
 
-    solver = BnbSolver(time_limit=time_limit)
+    solver = BnbSolver(time_limit=time_limit, verbose=False)
 
     best_found = False
     best_criterion = None
     best_params = None
-    best_loss = None
-    best_nnnz = None
     best_lmbd = None
-    best_lratio = None
     best_x = None
 
-    for params in grid_params:
-        print(f"Params: {params}")
+    for i, params in enumerate(grid_params):
+        print(f"Parameters combination {i+1}/{len(grid_params)}")
         penalty = get_penalty(penalty_name, **params)
-        lmbdmax = compute_lmbd_max(datafit, penalty, A)
-        path = Path(**kwargs)
+        path = Path(**kwargs, verbose=False)
         results = path.fit(solver, datafit, penalty, A)
 
         for lmbd, result in results.items():
@@ -243,25 +239,12 @@ def calibrate_parameters_cv(
                 best_found = False
                 best_criterion = criterion_value
                 best_params = params
-                best_loss = loss
-                best_nnnz = nnnz
                 best_lmbd = lmbd
-                best_lratio = lmbd / lmbdmax
                 best_x = np.copy(result.x)
-                print("Found new best criterion")
-                print(f"  {criterion}\t: {best_criterion}")
-                print(f"  lambda: {best_lmbd}")
-                print(f"  lratio: {best_lratio}")
-                print(f"  loss  : {best_loss}")
-                print(f"  nnnz  : {best_nnnz}")
 
-    print()
-    print("Overall best criterion")
-    print(f"  {criterion}\t: {best_criterion}")
-    print(f"  lambda: {best_lmbd}")
-    print(f"  lratio: {best_lratio}")
-    print(f"  loss  : {best_loss}")
-    print(f"  nnnz  : {best_nnnz}")
+    best = best_params.copy()
+    best["lambda"] = best_lmbd
+    print("Best found:", best)
 
     return datafit, get_penalty(penalty_name, **best_params), best_lmbd, best_x
 

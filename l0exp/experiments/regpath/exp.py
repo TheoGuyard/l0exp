@@ -1,9 +1,8 @@
-import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import pathlib
-from exprun import Experiment, Runner
+from exprun import Experiment
 from el0ps.compilation import CompilableClass, compiled_clone
 from el0ps.path import Path
 from el0ps.datafit import *  # noqa
@@ -205,33 +204,3 @@ class Regpath(Experiment):
             pathlib.Path(save_dir).joinpath(name).with_suffix(".csv"),
             index=False,
         )
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("command", type=str, choices=["run", "plot"])
-    parser.add_argument("--config_path", "-c", type=pathlib.Path)
-    parser.add_argument("--result_dir", "-r", type=pathlib.Path)
-    parser.add_argument("--save_dir", "-s", type=pathlib.Path, default=None)
-    parser.add_argument("--repeats", "-n", type=int, default=1)
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
-
-    runner = Runner(verbose=args.verbose)
-
-    if args.command == "run":
-        runner.run(
-            Regpath,
-            args.config_path,
-            args.result_dir,
-            args.repeats,
-        )
-    elif args.command == "plot":
-        runner.plot(
-            Regpath,
-            args.config_path,
-            args.result_dir,
-            args.save_dir,
-        )
-    else:
-        raise ValueError(f"Unknown command {args.command}.")

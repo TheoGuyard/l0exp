@@ -7,6 +7,7 @@ penalty: BigmL2norm
 calibration:
   method: cv
   kwargs:
+    time_limit: 60.
 
 solvers:
   el0ps:

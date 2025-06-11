@@ -1,4 +1,3 @@
-import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -7,7 +6,7 @@ from numpy.typing import ArrayLike
 from scipy.integrate import quad
 from scipy.interpolate import interp1d
 from scipy.special import erfc
-from exprun import Experiment, Runner
+from exprun import Experiment
 from el0ps.compilation import CompilableClass, compiled_clone
 from el0ps.datafit import Leastsquares
 from el0ps.penalty import (
@@ -315,6 +314,9 @@ class Mixtures(Experiment):
                 print("Skipping {}".format(solver_name))
                 result[solver_name] = None
 
+            if result[solver_name] is not None:
+                print(result[solver_name])
+
         return result
 
     def cleanup(self) -> None:
@@ -406,33 +408,3 @@ class Mixtures(Experiment):
             pathlib.Path(save_dir).joinpath(name).with_suffix(".csv"),
             index=False,
         )
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("command", type=str, choices=["run", "plot"])
-    parser.add_argument("--config_path", "-c", type=pathlib.Path)
-    parser.add_argument("--result_dir", "-r", type=pathlib.Path)
-    parser.add_argument("--save_dir", "-s", type=pathlib.Path, default=None)
-    parser.add_argument("--repeats", "-n", type=int, default=1)
-    parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
-
-    runner = Runner(verbose=args.verbose)
-
-    if args.command == "run":
-        runner.run(
-            Mixtures,
-            args.config_path,
-            args.result_dir,
-            args.repeats,
-        )
-    elif args.command == "plot":
-        runner.plot(
-            Mixtures,
-            args.config_path,
-            args.result_dir,
-            args.save_dir,
-        )
-    else:
-        raise ValueError(f"Unknown command {args.command}.")
