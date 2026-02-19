@@ -6,16 +6,16 @@ Numerical experiments for L0-norm problems
 
 This repository contains numerical experiments related to the following papers:
 
-- Paper 1: A New Branch-and-Bound Pruning Framework for L0-Regularized Problems. C. Elvira, T. Guyard, C. Herzet. Submitted, 2025. [[arXiv](https://arxiv.org/abs/2406.03504)]
-- Paper 2: "A Generic Branch-and-Bound Algorithm for L0-Penalized Problems". T. Guyard, C. Elvira, C. Herzet. ICML, 2024. [[arXiv](https://arxiv.org/abs/2506.03974)] 
+- Paper 1: A New Branch-and-Bound Pruning Framework for L0-Regularized Problems. C. Elvira, T. Guyard, C. Herzet. Submitted, 2025. [arXiv](https://arxiv.org/abs/2406.03504)
+- Paper 2: "A Generic Branch-and-Bound Algorithm for L0-Penalized Problems". T. Guyard, C. Elvira, C. Herzet. ICML, 2024. [arXiv](https://arxiv.org/abs/2506.03974)
 
 
 ## Reproducing experiments
 
 Experiments can be easily reproduced from notebooks:
 
-- Paper 1: [[Section 4.1](notebooks/icml_2024/section_4.1.ipynb)] [[Sections 4.2](notebooks/icml_2024/section_4.2.ipynb)]
-- Paper 2: [[Section 6.1](notebooks/mpc_2025/section_6.1.ipynb)] [[Sections 6.2 and 6.3](notebooks/mpc_2025/section_6.2_6.3.ipynb)]
+- Paper 1: [Section 4.1](notebooks/icml_2024/section_4.1.ipynb) [Sections 4.2](notebooks/icml_2024/section_4.2.ipynb)
+- Paper 2: [Section 6.1](notebooks/mpc_2025/section_6.1.ipynb) [Sections 6.2 and 6.3](notebooks/mpc_2025/section_6.2_6.3.ipynb)
 
 Alternatively, the full scripts that were used to run experiments in batches on HPC clusters are available [here](l0exp/), along with all utilities functions that are used in the notebooks.
 See the [Experiment workflow](#experiment-workflow) section for more details on how to run these scripts.
