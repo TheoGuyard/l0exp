@@ -27,6 +27,9 @@ dynamic = ["version"]
 [project.optional-dependencies]
 dev = ["black", "flake8"]
 
+[tool.setuptools]
+packages = ["l0exp"]
+
 [tool.setuptools.dynamic]
 version = {attr = "l0exp.__version__"}
 
