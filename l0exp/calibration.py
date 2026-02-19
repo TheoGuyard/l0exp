@@ -8,6 +8,19 @@ from rpy2.robjects import numpy2ri
 from rpy2.robjects.packages import importr
 from scipy.sparse import csc_matrix
 from sklearn.metrics import f1_score
+from el0ps.datafit import BaseDatafit, Leastsquares
+from el0ps.penalty import (
+    BasePenalty,
+    Bigm,
+    BigmL1norm,
+    BigmL2norm,
+    L1norm,
+    L2norm,
+    PositiveL2norm,
+    BigmPositiveL1norm,
+    L1L2norm,
+    Bounds
+)
 from el0ps.datafit import *  # noqa
 from el0ps.penalty import *  # noqa
 from el0ps.path import Path
@@ -15,55 +28,57 @@ from el0ps.solver import BnbSolver
 
 
 def dgCMatrix_to_numpy(X):
-    x = np.array(X.slots['x'])
-    i = np.array(X.slots['i'])
-    p = np.array(X.slots['p'])
-    dim = tuple(np.array(X.slots['Dim']))
+    x = np.array(X.slots["x"])
+    i = np.array(X.slots["i"])
+    p = np.array(X.slots["p"])
+    dim = tuple(np.array(X.slots["Dim"]))
     mat = csc_matrix((x, i, p), shape=dim)
     return np.array(mat.todense())
 
 
 def get_calibration_hardcoded(
     A,
-    y, 
-    x, 
-    datafit: str = "Leastsquares", 
+    y,
+    x,
+    datafit: str = "Leastsquares",
     penalty: str = "BigmL2norm",
     lmbd: float = 1.0,
     datafit_params: dict = {},
     penalty_params: dict = {},
 ):
-    
+
     datafit_type = eval(datafit)
     datafit_sign = inspect.signature(datafit.__init__)
-    datafit_args = [arg for arg in datafit_sign.parameters if arg not in ["self", "args", "kwargs"]]
-    
+    datafit_args = [
+        arg
+        for arg in datafit_sign.parameters
+        if arg not in ["self", "args", "kwargs"]
+    ]
+
     penalty_type = eval(penalty)
     penalty_sign = inspect.signature(penalty_type.__init__)
-    penalty_args = [arg for arg in penalty_sign.parameters if arg not in ["self", "args", "kwargs"]]
+    penalty_args = [
+        arg
+        for arg in penalty_sign.parameters
+        if arg not in ["self", "args", "kwargs"]
+    ]
 
     f = datafit_type(y, **{k: datafit_params[k] for k in datafit_args})
     h = penalty_type(**{k: penalty_params[k] for k in penalty_args})
-    l = lmbd
-    
-    return f, h, l
+
+    return f, h, lmbd
 
 
 def get_calibration_mixture(
-    A,
-    y,
-    x,
-    distrib_name: str = "gaussian",
-    distrib_args: dict = {},
-    **kwargs
+    A, y, x, distrib_name: str = "gaussian", distrib_args: dict = {}, **kwargs
 ):
-    
+
     m, n = A.shape
     k = np.count_nonzero(x)
     w = A @ x
     s = np.linalg.norm(w) / np.linalg.norm(w - y)
     sigma = np.sqrt(np.sqrt((w @ w) / (m * s)))
-    
+
     f = Leastsquares(y)
 
     if distrib_name == "gaussian":
@@ -94,24 +109,23 @@ def get_calibration_mixture(
     elif distrib_name == "dirac":
         h = Bigm(1.0)
     else:
-        raise ValueError(f"Unknown distribution name {distrib_name} for mixture calibration.")
+        raise ValueError(
+            f"Unknown distrib_name {distrib_name} for mixture calibration."
+        )
 
-    l =  float(sigma**2 * np.log((n - k) / k))
+    lmbd = float(sigma**2 * np.log((n - k) / k))
 
-    return f, h, l
+    return f, h, lmbd
 
 
 def get_calibration_synthetic(*args, **kwargs):
     return get_calibration_mixture(
-        *args, 
-        **kwargs, 
-        distrib_name="dirac", 
-        distrib_args={}
+        *args, **kwargs, distrib_name="dirac", distrib_args={}
     )
 
 
 def get_calibration_l0learn(A, y, x, datafit, penalty, **kwargs):
-    
+
     bindings = {
         "Leastsquares": "SquaredError",
         "Logistic": "Logistic",
@@ -124,9 +138,15 @@ def get_calibration_l0learn(A, y, x, datafit, penalty, **kwargs):
     }
 
     if datafit not in bindings.keys():
-        raise ValueError(f"Datafit {datafit} not supported for l0learn calibration. Available datafit and penalty bindings: {list(bindings.keys())}")
+        raise ValueError(
+            f"Datafit {datafit} not supported for l0learn calibration. "
+            f"Available datafit and penalty bindings: {list(bindings.keys())}"
+        )
     if penalty not in bindings.keys():
-        raise ValueError(f"Penalty {penalty} not supported for l0learn calibration. Available datafit and penalty bindings: {list(bindings.keys())}")
+        raise ValueError(
+            f"Penalty {penalty} not supported for l0learn calibration. "
+            f"Available datafit and penalty bindings: {list(bindings.keys())}"
+        )
 
     importr("L0Learn")
 
@@ -136,12 +156,12 @@ def get_calibration_l0learn(A, y, x, datafit, penalty, **kwargs):
         r_y = roco.py2rpy(y)
 
         fit, cv_means, cv_stds = ro.r("L0Learn.cvfit")(
-            x=r_A, 
-            y=r_y, 
+            x=r_A,
+            y=r_y,
             loss=bindings[datafit],
             penalty=bindings[penalty],
             intercept=False,
-            **kwargs
+            **kwargs,
         )
 
         fit = {str(k): v for (k, v) in zip(fit.names(), list(fit.values()))}
@@ -149,15 +169,15 @@ def get_calibration_l0learn(A, y, x, datafit, penalty, **kwargs):
         cv_stds = list(cv_stds.values())
 
     f = eval(datafit)(y)
-    
+
     best_M = None
     best_l = None
     best_a = None
     best_cv = np.inf
     best_f1 = 0.0
-    for i, a in enumerate(fit['gamma']):
-        X = dgCMatrix_to_numpy(fit['beta'][i])
-        for j, l in enumerate(fit['lambda'][i]):
+    for i, a in enumerate(fit["gamma"]):
+        X = dgCMatrix_to_numpy(fit["beta"][i])
+        for j, l in enumerate(fit["lambda"][i]):
             xj = X[:, j]
             cv = cv_means[i][j]
             f1 = 0.0 if x is None else f1_score(x != 0.0, xj != 0.0)
@@ -198,7 +218,7 @@ def get_calibration_cv(
 ):
 
     m, n = A.shape
-    
+
     f: BaseDatafit = eval(datafit)(y)
 
     M = np.max(np.abs(np.linalg.lstsq(A, y, rcond=None)[0]))
@@ -224,7 +244,7 @@ def get_calibration_cv(
     best_l = None
 
     if verbose:
-        print(f"Starting CV calibration")
+        print("Starting CV calibration")
 
     for params in grid_params:
 
@@ -232,7 +252,7 @@ def get_calibration_cv(
             print(f"Testing parameters: {params}...")
 
         h: BasePenalty = eval(penalty)(**params)
-        
+
         path = Path(**kwargs, verbose=verbose)
         results = path.fit(solver, f, h, A)
 
@@ -253,31 +273,34 @@ def get_calibration_cv(
                     best_found = True
             elif cvs < best_cvs:
                 best_found = True
-            
+
             if best_found:
                 best_cvs = cvs
                 best_nnz = nnz
                 best_p = deepcopy(params)
                 best_l = lmbd
                 if verbose:
-                    print(f"  New best at lambda={best_l} with {nnz} nnz and cvs={best_cvs:.4f}")
+                    print(
+                        f"  New best at lambda={best_l} with {nnz} nnz and "
+                        f"cvs={best_cvs:.4f}"
+                    )
 
     return f, eval(penalty)(**best_p), best_l
 
 
 def get_calibration(A, y, x, type: str, args: dict):
-    
+
     if type == "hardcoded":
-        f, h, l = get_calibration_hardcoded(A, y, x, **args)
+        f, h, lmbd = get_calibration_hardcoded(A, y, x, **args)
     elif type == "mixture":
-        f, h, l =  get_calibration_mixture(A, y, x, **args)
+        f, h, lmbd = get_calibration_mixture(A, y, x, **args)
     elif type == "synthetic":
-        f, h, l =  get_calibration_synthetic(A, y, x, **args)
+        f, h, lmbd = get_calibration_synthetic(A, y, x, **args)
     elif type == "l0learn":
-        f, h, l =  get_calibration_l0learn(A, y, x, **args)
+        f, h, lmbd = get_calibration_l0learn(A, y, x, **args)
     elif type == "cv":
-        f, h, l =  get_calibration_cv(A, y, x, **args)
+        f, h, lmbd = get_calibration_cv(A, y, x, **args)
     else:
         raise ValueError(f"Unknown problem calibration type {type}.")
-    
-    return f, h, l
+
+    return f, h, lmbd

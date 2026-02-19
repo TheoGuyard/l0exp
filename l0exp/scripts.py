@@ -8,7 +8,6 @@ import textwrap
 import yaml
 from copy import deepcopy
 
-
 # ----- Global variables ----- #
 
 LOC_PATH = "~/Documents/Github/l0exp"
@@ -32,9 +31,9 @@ def get_calibration_from_file(path, dataset, datafit, penalty):
         reader = csv.DictReader(file)
         for row in reader:
             if (
-                row["dataset"] == dataset and
-                row["datafit"] == datafit and
-                row["penalty"] == penalty
+                row["dataset"] == dataset
+                and row["datafit"] == datafit
+                and row["penalty"] == penalty
             ):
                 calibration = {
                     "datafit": datafit,
@@ -46,35 +45,34 @@ def get_calibration_from_file(path, dataset, datafit, penalty):
                 return calibration
 
     raise ValueError(
-        "Calibration not found for {}, {}, {}.".format(dataset, datafit, penalty)
+        "Calibration not found for {}, {}, {}.".format(
+            dataset, datafit, penalty
+        )
     )
-
 
 
 # ----- Job definitions ----- #
 
 
 EXPERIMENTS = [
-
     # ----- Section 6.2 calibration ----- #
-
     {
-        "name"      : "calibration",
-        "walltime"  : "04:00:00",
-        "memory"    : "16G",
-        "configs"   : [
+        "name": "calibration",
+        "walltime": "04:00:00",
+        "memory": "16G",
+        "configs": [
             {
                 "experiment": "calibration",
                 "dataset": {
                     "type": "hardcoded",
-                    "args": {"name": dataset, "normalize": True}
+                    "args": {"name": dataset, "normalize": True},
                 },
                 "calibration": {
-                    "type": "cv", 
+                    "type": "cv",
                     "args": {"datafit": datafit, "penalty": penalty},
                 },
                 "solvers": {},
-                "action": {}
+                "action": {},
             }
             for (dataset, datafit, penalty) in [
                 ("drug", "Leastsquares", "BigmL1L2norm"),
@@ -103,97 +101,116 @@ EXPERIMENTS = [
                 ("dexter", "Squaredhinge", "BigmL1L2norm"),
                 ("dexter", "Squaredhinge", "BigmL2norm"),
             ]
-        ]
+        ],
     },
-    
     # ----- Section 6.2 experiment ----- #
-
     {
-        "name"      : "section_6.2",
-        "walltime"  : "24:00:00",
-        "memory"    : "256G",
-        "configs"   : [
+        "name": "section_6.2",
+        "walltime": "24:00:00",
+        "memory": "256G",
+        "configs": [
             {
                 "experiment": "section_6.2",
                 "dataset": {
                     "type": "hardcoded",
-                    "args": {"name": dataset, "normalize": True}
+                    "args": {"name": dataset, "normalize": True},
                 },
                 "calibration": {
-                    "type": "hardcoded", 
+                    "type": "hardcoded",
                     "args": get_calibration_from_file(
-                        pathlib.Path(__file__).parent / "configs" / "mpc_2025" / "section_6.2_calibration.csv",
+                        pathlib.Path(__file__).parent
+                        / "configs"
+                        / "mpc_2025"
+                        / "section_6.2_calibration.csv",
                         dataset,
                         datafit,
-                        penalty
+                        penalty,
                     ),
                 },
                 "solvers": {
                     solver: {
                         "type": solver,
-                        "args": {"time_limit": 3600., "relative_gap": 1.e-8, "verbose": False}
-                    } for solver in solvers
+                        "args": {
+                            "time_limit": 3600.0,
+                            "relative_gap": 1.0e-8,
+                            "verbose": False,
+                        },
+                    }
+                    for solver in solvers
                 },
                 "action": {
                     "type": "path",
-                    "args": {"lmbd_max": 1, "lmbd_min": 0.01, "lmbd_num": 21}
-                }
+                    "args": {"lmbd_max": 1, "lmbd_min": 0.01, "lmbd_num": 21},
+                },
             }
             for (dataset, datafit, penalty, solvers) in [
-                ("drug", "Leastsquares", "BigmL1L2norm", ["el0ps", "l0bnb", "gurobi", "mosek", "oa"]),
-                # ("drug", "Leastsquares", "BigmL2norm", ["el0ps", "l0bnb", "gurobi", "mosek", "oa"]),
-                #
-                # ("kits", "Leastsquares", "BigmL1L2norm", ["el0ps", "l0bnb", "gurobi", "mosek", "oa"]),
+                (
+                    "drug",
+                    "Leastsquares",
+                    "BigmL1L2norm",
+                    ["el0ps", "l0bnb", "gurobi", "mosek", "oa"],
+                ),
+                ("drug", "Leastsquares", "BigmL2norm", ["el0ps", "l0bnb", "gurobi", "mosek", "oa"]),
+                ("kits", "Leastsquares", "BigmL1L2norm", ["el0ps", "l0bnb", "gurobi", "mosek", "oa"]),
                 ("kits", "Leastsquares", "BigmL2norm", ["oa"]),
-                #
-                # ("gisette", "Logistic", "BigmL1L2norm", ["el0ps", "gurobi", "mosek", "oa"]),
-                # ("gisette", "Logistic", "BigmL2norm", ["el0ps", "gurobi", "mosek", "oa"]),
-                #
-                # ("madelon", "Logistic", "BigmL1L2norm", ["el0ps", "gurobi", "mosek", "oa"]),
-                # ("madelon", "Logistic", "BigmL2norm", ["el0ps", "gurobi", "mosek", "oa"]),
-                #
-                ("dorothea", "Squaredhinge", "BigmL1L2norm", ["el0ps", "gurobi", "mosek", "oa"]),
-                ("dorothea", "Squaredhinge", "BigmL2norm", ["el0ps", "gurobi", "mosek", "oa"]),
-                #
-                # ("dexter", "Squaredhinge", "BigmL1L2norm", ["el0ps", "gurobi", "mosek", "oa"]),
-                # ("dexter", "Squaredhinge", "BigmL2norm", ["el0ps", "gurobi", "mosek", "oa"]),
+                ("gisette", "Logistic", "BigmL1L2norm", ["el0ps", "gurobi", "mosek", "oa"]),
+                ("gisette", "Logistic", "BigmL2norm", ["el0ps", "gurobi", "mosek", "oa"]),
+                ("madelon", "Logistic", "BigmL1L2norm", ["el0ps", "gurobi", "mosek", "oa"]),
+                ("madelon", "Logistic", "BigmL2norm", ["el0ps", "gurobi", "mosek", "oa"]),
+                (
+                    "dorothea",
+                    "Squaredhinge",
+                    "BigmL1L2norm",
+                    ["el0ps", "gurobi", "mosek", "oa"],
+                ),
+                (
+                    "dorothea",
+                    "Squaredhinge",
+                    "BigmL2norm",
+                    ["el0ps", "gurobi", "mosek", "oa"],
+                ),
+                ("dexter", "Squaredhinge", "BigmL1L2norm", ["el0ps", "gurobi", "mosek", "oa"]),
+                ("dexter", "Squaredhinge", "BigmL2norm", ["el0ps", "gurobi", "mosek", "oa"]),
             ]
-        ]
+        ],
     },
-
     # ----- Section 6.3 experiment ----- #
-
     {
-        "name"      : "section_6.3",
-        "walltime"  : "01:15:00",
-        "memory"    : "16G",
-        "configs"   : [
+        "name": "section_6.3",
+        "walltime": "01:15:00",
+        "memory": "16G",
+        "configs": [
             {
                 "experiment": "section_6.3",
                 "dataset": {
-                    'type': 'mixture',
-                    'args': {
-                        'k': 10,
-                        'm': 500,
-                        'n': 1000,
-                        'r': 0.9,
-                        's': 10.,
-                        'distrib_name': distrib_name,
-                        'distrib_args': deepcopy(distrib_args),
-                    }
+                    "type": "mixture",
+                    "args": {
+                        "k": 10,
+                        "m": 500,
+                        "n": 1000,
+                        "r": 0.9,
+                        "s": 10.0,
+                        "distrib_name": distrib_name,
+                        "distrib_args": deepcopy(distrib_args),
+                    },
                 },
                 "calibration": {
-                    "type": "mixture", 
+                    "type": "mixture",
                     "args": {
-                        'distrib_name': distrib_name,
-                        'distrib_args': deepcopy(distrib_args),
-                    }
+                        "distrib_name": distrib_name,
+                        "distrib_args": deepcopy(distrib_args),
+                    },
                 },
                 "solvers": {
                     solver: {
                         "type": solver,
-                        "args": {"time_limit": 600., "relative_gap": 1.e-8, "verbose": False}
-                    } for solver in [
+                        "args": {
+                            "time_limit": 600.0,
+                            "relative_gap": 1.0e-8,
+                            "verbose": False,
+                        },
+                    }
+                    for solver in [
                         "el0ps",
                         "l0bnb",
                         "gurobi",
@@ -201,10 +218,7 @@ EXPERIMENTS = [
                         "oa",
                     ]
                 },
-                "action": {
-                    "type": "solve",
-                    "args": {}
-                }
+                "action": {"type": "solve", "args": {}},
             }
             for (distrib_name, distrib_args) in [
                 ("uniform", {"low": -1.0, "high": 1.0}),
@@ -212,44 +226,47 @@ EXPERIMENTS = [
                 ("laplace", {"scale": 1.0}),
                 ("exponential", {"scale": 1.0}),
                 ("halfgaussian", {"scale": 1.0}),
-                ("gausslaplace", {"scale1": 1.0, "scale2": 1.0})
+                ("gausslaplace", {"scale1": 1.0, "scale2": 1.0}),
             ]
-        ]
+        ],
     },
-
     # ----- Section 6.4 experiment ----- #
-
     {
-        "name"      : "section_6.4",
-        "walltime"  : "05:30:00",
-        "memory"    : "16G",
-        "configs"   : [
+        "name": "section_6.4",
+        "walltime": "05:30:00",
+        "memory": "16G",
+        "configs": [
             {
                 "experiment": "section_6.4",
                 "dataset": {
-                    'type': 'mixture',
-                    'args': {
-                        'k': k,
-                        'm': m,
-                        'n': n,
-                        'r': r,
-                        's': s,
-                        'distrib_name': 'uniform',
-                        'distrib_args': {'low': -bigm, 'high': bigm},
-                    }
+                    "type": "mixture",
+                    "args": {
+                        "k": k,
+                        "m": m,
+                        "n": n,
+                        "r": r,
+                        "s": s,
+                        "distrib_name": "uniform",
+                        "distrib_args": {"low": -bigm, "high": bigm},
+                    },
                 },
                 "calibration": {
-                    "type": "mixture", 
+                    "type": "mixture",
                     "args": {
-                        'distrib_name': 'uniform',
-                        'distrib_args': {'low': -bigm, 'high': bigm},
-                    }
+                        "distrib_name": "uniform",
+                        "distrib_args": {"low": -bigm, "high": bigm},
+                    },
                 },
                 "solvers": {
                     solver: {
                         "type": solver,
-                        "args": {"time_limit": 3600., "relative_gap": 1.e-8, "verbose": False}
-                    } for solver in [
+                        "args": {
+                            "time_limit": 3600.0,
+                            "relative_gap": 1.0e-8,
+                            "verbose": False,
+                        },
+                    }
+                    for solver in [
                         "el0ps",
                         "l0bnb",
                         "gurobi",
@@ -257,10 +274,7 @@ EXPERIMENTS = [
                         "oa",
                     ]
                 },
-                "action": {
-                    "type": "solve",
-                    "args": {}
-                }
+                "action": {"type": "solve", "args": {}},
             }
             for (k, m, n, r, s, bigm) in [
                 # # Vary k
@@ -295,14 +309,14 @@ EXPERIMENTS = [
                 # (10, 500, 1000, 0.9, 31.6227766, 1.0),
                 # (10, 500, 1000, 0.9, 100., 1.0),
                 # Vary bigm factor
-                (10, 500, 1000, 0.9, 10., 1.0),
-                (10, 500, 1000, 0.9, 10., 2.0),
-                (10, 500, 1000, 0.9, 10., 4.0),
-                (10, 500, 1000, 0.9, 10., 6.0),
-                (10, 500, 1000, 0.9, 10., 8.0),
-                (10, 500, 1000, 0.9, 10., 10.0),
+                (10, 500, 1000, 0.9, 10.0, 1.0),
+                (10, 500, 1000, 0.9, 10.0, 2.0),
+                (10, 500, 1000, 0.9, 10.0, 4.0),
+                (10, 500, 1000, 0.9, 10.0, 6.0),
+                (10, 500, 1000, 0.9, 10.0, 8.0),
+                (10, 500, 1000, 0.9, 10.0, 10.0),
             ]
-        ]
+        ],
     },
 ]
 
@@ -324,42 +338,56 @@ def slurm_run_stream():
 
 
 def slurm_job_stream(experiment: dict):
-    stream = textwrap.dedent("""\
+    stream = textwrap.dedent(
+        """\
         #!/bin/sh
         #SBATCH -J {}
-        #SBATCH -o {}/%x_%A_%a.out    
+        #SBATCH -o {}/%x_%A_%a.out
         #SBATCH -e {}/%x_%A_%a.err
         {}
         {}
         {}
-        #SBATCH --array=0-{}    
+        #SBATCH --array=0-{}
         #SBATCH --account=def-vidalthi
 
         config_file="{}_${{SLURM_ARRAY_TASK_ID}}.yml"
-        
+
         module load {}
         source {}/.bash_profile
         source {}/.bashrc
         source {}/.venv/bin/activate
         cd {}
-        python ./l0exp/run.py --config {}/{}/configs/$config_file --save         
+        python ./l0exp/run.py --config {}/{}/configs/$config_file --save
     """.format(
-        experiment["name"],
-        LOGS_DIR,
-        LOGS_DIR,
-        "#SBATCH -t {}".format(experiment["walltime"]) if "walltime" in experiment else "",
-        "#SBATCH --mem={}".format(experiment["memory"]) if "memory" in experiment else "",
-        "#SBATCH --cpus-per-task={}".format(experiment["cpus"]) if "cpus" in experiment else "",
-        len(experiment["configs"]) - 1,
-        experiment["name"],
-        " ".join(MODULES),
-        HOME_DIR,
-        HOME_DIR,
-        HOME_DIR,
-        BASE_DIR,
-        TMPS_DIR,
-        experiment["name"],
-    ))
+            experiment["name"],
+            LOGS_DIR,
+            LOGS_DIR,
+            (
+                "#SBATCH -t {}".format(experiment["walltime"])
+                if "walltime" in experiment
+                else ""
+            ),
+            (
+                "#SBATCH --mem={}".format(experiment["memory"])
+                if "memory" in experiment
+                else ""
+            ),
+            (
+                "#SBATCH --cpus-per-task={}".format(experiment["cpus"])
+                if "cpus" in experiment
+                else ""
+            ),
+            len(experiment["configs"]) - 1,
+            experiment["name"],
+            " ".join(MODULES),
+            HOME_DIR,
+            HOME_DIR,
+            HOME_DIR,
+            BASE_DIR,
+            TMPS_DIR,
+            experiment["name"],
+        )
+    )
     return stream
 
 
@@ -388,7 +416,8 @@ def send():
 
 def install():
     print("install")
-    cmd_str = textwrap.dedent("""\
+    cmd_str = textwrap.dedent(
+        """\
         module load {}
         source {}/.bash_profile
         source {}/.bashrc
@@ -396,11 +425,13 @@ def install():
         cd {}
         pip install -e .
     """.format(
-        " ".join(MODULES),
-        HOME_DIR,
-        HOME_DIR,
-        BASE_DIR,
-    ))
+            " ".join(MODULES),
+            HOME_DIR,
+            HOME_DIR,
+            HOME_DIR,
+            BASE_DIR,
+        )
+    )
     subprocess.run(cmd_str, shell=True)
 
 
@@ -436,7 +467,12 @@ def make():
 
         # Write the configs file
         for i, config in enumerate(experiment["configs"]):
-            with open(job_array_configs_dir.joinpath(f"{experiment['name']}_{i:d}.yml"), "w") as file:
+            with open(
+                job_array_configs_dir.joinpath(
+                    f"{experiment['name']}_{i:d}.yml"
+                ),
+                "w",
+            ) as file:
                 yaml.dump(config, file)
 
         # Slurm job stream
@@ -449,7 +485,7 @@ def make():
         subprocess.run("chmod u+x {}".format(job_path), shell=True)
 
 
-def receive(filefilter='*.pkl'):
+def receive(filefilter="*.pkl"):
     print("receive")
     src_path = pathlib.Path(REM_PATH, "l0exp", "l0exp", "results", filefilter)
     dst_path = pathlib.Path(LOC_PATH, "l0exp", "results")
@@ -478,7 +514,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("-e", "--expname", default=None)
     parser.add_argument("-r", "--repeats", type=int, default=1)
-    parser.add_argument("-f", "--filefilter", type=str, default='*.pkl')
+    parser.add_argument("-f", "--filefilter", type=str, default="*.pkl")
     args = parser.parse_args()
 
     if args.cmd == "send":

@@ -14,8 +14,8 @@ from scipy.special import erfc
 from typing import Optional
 from numpy.typing import NDArray
 
-
 # Mixture datasets helpers
+
 
 def gauss_laplace_pdf(x, theta):
     scale1 = theta[0]
@@ -67,6 +67,7 @@ def sample_distribution(name: str, args: dict = {}):
 
 # Realworld datasets helpers
 
+
 def load_matrix_dense(file_path: str, **kwargs) -> np.ndarray:
     matrix = np.loadtxt(file_path, **kwargs)
     return matrix
@@ -82,14 +83,16 @@ def load_matrix_sparse(file_path: str) -> np.ndarray:
                 indices = []
                 values = []
                 for item in line.strip().split():
-                    index, value = item.split(':')
+                    index, value = item.split(":")
                     indices.append(int(index))
                     values.append(float(value))
                 rows.extend([i] * len(indices))
                 cols.extend(indices)
                 cdim = max(cdim, max(indices))
     data = np.ones(len(rows), dtype=np.int8)
-    matrix = csr_matrix((data, (rows, cols)), shape=(i + 1, cdim + 1)).todense()
+    matrix = csr_matrix(
+        (data, (rows, cols)), shape=(i + 1, cdim + 1)
+    ).todense()
     return matrix
 
 
@@ -100,12 +103,14 @@ def load_matrix_sparse_binary(file_path: str) -> np.ndarray:
     with open(file_path) as f:
         for i, line in enumerate(f):
             if line.strip():
-                j = np.fromstring(line, sep=' ', dtype=int)
+                j = np.fromstring(line, sep=" ", dtype=int)
                 rows.extend([i] * len(j))
                 cols.extend(j)
                 cdim = max(cdim, max(j))
     data = np.ones(len(rows), dtype=np.int8)
-    matrix = csr_matrix((data, (rows, cols)), shape=(i + 1, cdim + 1)).todense()
+    matrix = csr_matrix(
+        (data, (rows, cols)), shape=(i + 1, cdim + 1)
+    ).todense()
     return matrix
 
 
@@ -134,7 +139,7 @@ def load_dataset_riboflavin():
 
 
 def load_dataset_arcene():
-    
+
     url = "https://archive.ics.uci.edu/static/public/167/arcene.zip"
     A_path = "ARCENE/arcene_train.data"
     y_path = "ARCENE/arcene_train.labels"
@@ -144,7 +149,7 @@ def load_dataset_arcene():
         zip_path = os.path.join(tmpdirname, "arcene.zip")
         urllib.request.urlretrieve(url, zip_path)
 
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(tmpdirname)
 
         A_path = os.path.join(tmpdirname, A_path)
@@ -167,7 +172,7 @@ def load_dataset_colon_cancer():
 
 
 def load_dataset_dexter():
-    
+
     url = "https://archive.ics.uci.edu/static/public/168/dexter.zip"
     A_path = "DEXTER/dexter_train.data"
     y_path = "DEXTER/dexter_train.labels"
@@ -177,7 +182,7 @@ def load_dataset_dexter():
         zip_path = os.path.join(tmpdirname, "dexter.zip")
         urllib.request.urlretrieve(url, zip_path)
 
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(tmpdirname)
 
         A_path = os.path.join(tmpdirname, A_path)
@@ -190,7 +195,7 @@ def load_dataset_dexter():
 
 
 def load_dataset_dorothea():
-    
+
     url = "https://archive.ics.uci.edu/static/public/169/dorothea.zip"
     A_path = "DOROTHEA/dorothea_train.data"
     y_path = "DOROTHEA/dorothea_train.labels"
@@ -200,7 +205,7 @@ def load_dataset_dorothea():
         zip_path = os.path.join(tmpdirname, "dorothea.zip")
         urllib.request.urlretrieve(url, zip_path)
 
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(tmpdirname)
 
         A_path = os.path.join(tmpdirname, A_path)
@@ -213,7 +218,7 @@ def load_dataset_dorothea():
 
 
 def load_dataset_gisette():
-    
+
     url = "https://archive.ics.uci.edu/static/public/170/gisette.zip"
     A_path = "GISETTE/gisette_train.data"
     y_path = "GISETTE/gisette_train.labels"
@@ -223,7 +228,7 @@ def load_dataset_gisette():
         zip_path = os.path.join(tmpdirname, "gisette.zip")
         urllib.request.urlretrieve(url, zip_path)
 
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(tmpdirname)
 
         A_path = os.path.join(tmpdirname, A_path)
@@ -241,7 +246,7 @@ def load_dataset_leukemia():
 
 
 def load_dataset_madelon():
-    
+
     url = "https://archive.ics.uci.edu/static/public/171/madelon.zip"
     A_path = "MADELON/madelon_train.data"
     y_path = "MADELON/madelon_train.labels"
@@ -250,7 +255,7 @@ def load_dataset_madelon():
         zip_path = os.path.join(tmpdirname, "madelon.zip")
         urllib.request.urlretrieve(url, zip_path)
 
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(tmpdirname)
 
         A_path = os.path.join(tmpdirname, A_path)
@@ -264,6 +269,7 @@ def load_dataset_madelon():
 
 # Dataset loaders
 
+
 def get_dataset_mixture(
     k: int = 10,
     m: int = 500,
@@ -272,7 +278,7 @@ def get_dataset_mixture(
     s: float = 10.0,
     distrib_name: str = "gaussian",
     distrib_args: dict = {},
-    seed = None,
+    seed=None,
 ):
 
     assert n >= k > 0
@@ -308,10 +314,7 @@ def get_dataset_mixture(
 
 def get_dataset_synthetic(*args, **kwargs):
     return get_dataset_mixture(
-        *args, 
-        **kwargs, 
-        distrib_name="dirac", 
-        distrib_args={}
+        *args, **kwargs, distrib_name="dirac", distrib_args={}
     )
 
 
@@ -326,14 +329,13 @@ def get_dataset_realworld(name: str, normalize: bool = True):
         "arcene",
         "breast-cancer",
         "colon-cancer",
-        "dexter", 
-        "dorothea", 
-        "gisette", 
+        "dexter",
+        "dorothea",
+        "gisette",
         "leukemia",
-        "madelon", 
-               
+        "madelon",
     ]
-    
+
     if name == "drug":
         A, y, task = load_dataset_drug()
     elif name == "kits":
@@ -357,9 +359,12 @@ def get_dataset_realworld(name: str, normalize: bool = True):
         A, y, task = load_dataset_leukemia()
     elif name == "madelon":
         A, y, task = load_dataset_madelon()
-    
+
     else:
-        raise ValueError(f"Unknown realworld dataset name {name}. Available names are: {available}")
+        raise ValueError(
+            f"Unknown realworld dataset name {name}. Available names are: "
+            f"{available}"
+        )
 
     A = np.asarray(A, dtype=float)
     y = np.asarray(y, dtype=float).flatten()
@@ -370,10 +375,12 @@ def get_dataset_realworld(name: str, normalize: bool = True):
 
     if normalize:
         A /= np.linalg.norm(A, axis=0, ord=2)
-    
+
     if task == "classification":
         if set(np.unique(y)) != {1.0, -1.0}:
-            raise ValueError(f"Unexpected labels in classification dataset {name}.")
+            raise ValueError(
+                f"Unexpected labels in classification dataset {name}."
+            )
 
     return A, y, None
 
@@ -397,15 +404,19 @@ def get_dataset_hardcoded(name: str, normalize: bool = True):
 
     if normalize:
         A /= np.linalg.norm(A, axis=0, ord=2)
-    
+
     if task == "classification":
         if set(np.unique(y)) != {1.0, -1.0}:
-            raise ValueError(f"Unexpected labels in classification dataset {name}.")
+            raise ValueError(
+                f"Unexpected labels in classification dataset {name}."
+            )
 
     return A, y, x
 
 
-def get_dataset(type: dict, args: dict) -> tuple[NDArray, NDArray, Optional[NDArray]]:
+def get_dataset(
+    type: dict, args: dict
+) -> tuple[NDArray, NDArray, Optional[NDArray]]:
     if type == "synthetic":
         return get_dataset_synthetic(**args)
     elif type == "mixture":

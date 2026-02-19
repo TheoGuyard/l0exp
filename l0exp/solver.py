@@ -9,15 +9,36 @@ import sys
 from gurobipy import GRB, nlfunc
 from numpy.typing import NDArray
 from typing import Optional, Union
-from el0ps.datafit import *  # noqa: F401
-from el0ps.penalty import *  # noqa: F401
+from el0ps.datafit import (
+    BaseDatafit,
+    Leastsquares,
+    Logistic,
+    Squaredhinge,
+    MipDatafit,
+)
+from el0ps.penalty import (
+    BasePenalty,
+    Bigm,
+    BigmL1L2norm,
+    BigmL1norm,
+    BigmL2norm,
+    BigmPositiveL1norm,
+    BigmPositiveL2norm,
+    Bounds,
+    L1L2norm,
+    L2norm,
+    PositiveL2norm,
+    MipPenalty,
+)
+from el0ps.datafit import *  # noqa
+from el0ps.penalty import *  # noqa
 from el0ps.solver import (
     BaseSolver,
     Result,
     Status,
     BnbSolver,
     MipSolver,
-    OaSolver
+    OaSolver,
 )
 from el0ps.solver.mip import _mip_supports
 from el0ps.path import Path
@@ -134,13 +155,13 @@ class MimosaSolver(BaseSolver):
         self.time_limit = time_limit
         self.verbose = verbose
 
-        if 'MIMOSA_BIN' not in os.environ:
+        if "MIMOSA_BIN" not in os.environ:
             raise ValueError("MIMOSA_BIN environment variable is not set.")
-        self.MIMOSA_BIN = pathlib.Path(os.environ['MIMOSA_BIN']).absolute()
+        self.MIMOSA_BIN = pathlib.Path(os.environ["MIMOSA_BIN"]).absolute()
 
-        if 'MIMOSA_TMP' not in os.environ:
+        if "MIMOSA_TMP" not in os.environ:
             raise ValueError("MIMOSA_TMP environment variable is not set.")
-        self.MIMOSA_TMP = pathlib.Path(os.environ['MIMOSA_TMP']).absolute()
+        self.MIMOSA_TMP = pathlib.Path(os.environ["MIMOSA_TMP"]).absolute()
 
     def __str__(self):
         return "MimosaSolver"
@@ -163,9 +184,9 @@ class MimosaSolver(BaseSolver):
         self.MIMOSA_TMP.mkdir()
 
         # Save instance to MIMOSA_TMP
-        np.savetxt(self.MIMOSA_TMP / 'A.dat', A)
-        np.savetxt(self.MIMOSA_TMP / 'y.dat', datafit.y)
-        np.savetxt(self.MIMOSA_TMP / 'mu.dat', [lmbd])
+        np.savetxt(self.MIMOSA_TMP / "A.dat", A)
+        np.savetxt(self.MIMOSA_TMP / "y.dat", datafit.y)
+        np.savetxt(self.MIMOSA_TMP / "mu.dat", [lmbd])
 
         # Mimosa command
         options = "l2pl0 bb_activeset_warm 0 0.0 0 heap_on_lb 0 max_xi"
@@ -197,7 +218,9 @@ class MimosaSolver(BaseSolver):
             solve_time = float(match.group(1)) if match else None
             match = re.search(r"Node_Number_BB:\s*(\d+)", content)
             iter_count = int(match.group(1)) if match else None
-            match = re.search(r"x_sol\s*((?:\s*-?\d*\.?\d+\s*)+)", content, re.DOTALL)  # noqa: E501
+            match = re.search(
+                r"x_sol\s*((?:\s*-?\d*\.?\d+\s*)+)", content, re.DOTALL
+            )  # noqa: E501
             if match:
                 x_lines = match.group(1)
                 x_vals = list(map(float, re.findall(r"-?\d*\.?\d+", x_lines)))
@@ -258,7 +281,7 @@ class GurobiSolver(BaseSolver):
         A: NDArray,
         lmbd: float,
     ) -> gp.Model:
-        
+
         self.m, self.n = A.shape
         self.datafit = datafit
         self.penalty = penalty
@@ -267,64 +290,99 @@ class GurobiSolver(BaseSolver):
 
         self.model = gp.Model()
 
-        self.model.setParam('OutputFlag', 1 if self.verbose else 0)
-        self.model.setParam('TimeLimit', self.time_limit)
-        self.model.setParam('MIPGap', self.relative_gap)
-        self.model.setParam('MIPGapAbs', self.absolute_gap)
+        self.model.setParam("OutputFlag", 1 if self.verbose else 0)
+        self.model.setParam("TimeLimit", self.time_limit)
+        self.model.setParam("MIPGap", self.relative_gap)
+        self.model.setParam("MIPGapAbs", self.absolute_gap)
 
-        self.x = self.model.addVars(self.n, lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS, name="x")
+        self.x = self.model.addVars(
+            self.n, lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS, name="x"
+        )
         self.z = self.model.addVars(self.n, vtype=GRB.BINARY, name="z")
-        self.w = self.model.addVars(self.m, lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS, name="w")
-        self.f = self.model.addVar(lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS, name="f")
-        self.h = self.model.addVar(lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS, name="h")
+        self.w = self.model.addVars(
+            self.m, lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS, name="w"
+        )
+        self.f = self.model.addVar(
+            lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS, name="f"
+        )
+        self.h = self.model.addVar(
+            lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS, name="h"
+        )
 
         for j in range(self.m):
             self.model.addConstr(
-                self.w[j] == gp.quicksum(A[j, i] * self.x[i] for i in range(self.n))
+                self.w[j]
+                == gp.quicksum(A[j, i] * self.x[i] for i in range(self.n))
             )
 
         self.bind_model(datafit)
         self.bind_model(penalty)
 
         self.model.setObjective(
-            self.f + lmbd * gp.quicksum(self.z[i] for i in range(self.n)) + self.h,
-            GRB.MINIMIZE
+            self.f
+            + lmbd * gp.quicksum(self.z[i] for i in range(self.n))
+            + self.h,
+            GRB.MINIMIZE,
         )
-        
+
         return self.model
 
     def bind_model(self, func: Union[BaseDatafit, BasePenalty]) -> None:
         if isinstance(func, Leastsquares):
-            self.r = self.model.addVars(self.m, lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS)
+            self.r = self.model.addVars(
+                self.m, lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS
+            )
             self.model.addConstrs(
                 self.r[j] == self.w[j] - func.y[j] for j in range(self.m)
             )
             self.model.addConstr(
-                self.f >= 0.5 * gp.quicksum(self.r[j] * self.r[j] for j in range(self.m))
+                self.f
+                >= 0.5
+                * gp.quicksum(self.r[j] * self.r[j] for j in range(self.m))
             )
         elif isinstance(func, Logistic):
-            self.r = self.model.addVars(self.m, lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS)
-            self.model.addConstrs(self.r[j] == -func.y[j] * self.w[j] for j in range(self.m))
+            self.r = self.model.addVars(
+                self.m, lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS
+            )
+            self.model.addConstrs(
+                self.r[j] == -func.y[j] * self.w[j] for j in range(self.m)
+            )
             self.model.addConstr(
-                self.f == sum(
-                    nlfunc.log(1.0 + nlfunc.exp(self.r[j])) for j in range(self.m)
+                self.f
+                == sum(
+                    nlfunc.log(1.0 + nlfunc.exp(self.r[j]))
+                    for j in range(self.m)
                 )
             )
         elif isinstance(func, Squaredhinge):
-            self.f1_var = self.model.addVars(self.m, lb=0.0, vtype=GRB.CONTINUOUS, name="f1")
+            self.f1_var = self.model.addVars(
+                self.m, lb=0.0, vtype=GRB.CONTINUOUS, name="f1"
+            )
             self.model.addConstrs(
-                self.f1_var[j] >= 1.0 - func.y[j] * self.w[j] for j in range(self.m)
+                self.f1_var[j] >= 1.0 - func.y[j] * self.w[j]
+                for j in range(self.m)
             )
             self.model.addConstr(
-                self.f >= gp.quicksum(self.f1_var[j] * self.f1_var[j] for j in range(self.m))
+                self.f
+                >= gp.quicksum(
+                    self.f1_var[j] * self.f1_var[j] for j in range(self.m)
+                )
             )
         elif isinstance(func, Bigm):
-            self.model.addConstrs(self.x[i] <= func.M * self.z[i] for i in range(self.n))
-            self.model.addConstrs(self.x[i] >= -func.M * self.z[i] for i in range(self.n))
+            self.model.addConstrs(
+                self.x[i] <= func.M * self.z[i] for i in range(self.n)
+            )
+            self.model.addConstrs(
+                self.x[i] >= -func.M * self.z[i] for i in range(self.n)
+            )
             self.model.addConstr(self.h >= 0.0)
         elif isinstance(func, BigmL1L2norm):
-            self.h1_var = self.model.addVars(self.n, lb=0.0, ub=func.M, vtype=GRB.CONTINUOUS, name="h1")
-            self.h2_var = self.model.addVars(self.n, lb=0.0, ub=func.M**2, vtype=GRB.CONTINUOUS, name="h2")
+            self.h1_var = self.model.addVars(
+                self.n, lb=0.0, ub=func.M, vtype=GRB.CONTINUOUS, name="h1"
+            )
+            self.h2_var = self.model.addVars(
+                self.n, lb=0.0, ub=func.M**2, vtype=GRB.CONTINUOUS, name="h2"
+            )
             self.model.addConstrs(
                 self.x[i] <= func.M * self.z[i] for i in range(self.n)
             )
@@ -338,50 +396,108 @@ class GurobiSolver(BaseSolver):
                 self.h1_var[i] >= -self.x[i] for i in range(self.n)
             )
             for i in range(self.n):
-                self.model.addQConstr(self.x[i] * self.x[i] <= 2.0 * self.h2_var[i] * self.z[i])
+                self.model.addQConstr(
+                    self.x[i] * self.x[i] <= 2.0 * self.h2_var[i] * self.z[i]
+                )
             self.model.addConstr(
-                self.h >= func.alpha * gp.quicksum(self.h1_var[i] for i in range(self.n))
-                + 2.0 * func.beta * gp.quicksum(self.h2_var[i] for i in range(self.n))
+                self.h
+                >= func.alpha
+                * gp.quicksum(self.h1_var[i] for i in range(self.n))
+                + 2.0
+                * func.beta
+                * gp.quicksum(self.h2_var[i] for i in range(self.n))
             )
         elif isinstance(func, BigmL1norm):
-            self.h_var = self.model.addVars(self.n, lb=0.0, ub=func.M, vtype=GRB.CONTINUOUS, name="h1")
-            self.model.addConstrs(self.x[i] <= func.M * self.z[i] for i in range(self.n))
-            self.model.addConstrs(self.x[i] >= -func.M * self.z[i] for i in range(self.n))
-            self.model.addConstrs(self.h_var[i] >= self.x[i] for i in range(self.n))
-            self.model.addConstrs(self.h_var[i] >= -self.x[i] for i in range(self.n))
+            self.h_var = self.model.addVars(
+                self.n, lb=0.0, ub=func.M, vtype=GRB.CONTINUOUS, name="h1"
+            )
+            self.model.addConstrs(
+                self.x[i] <= func.M * self.z[i] for i in range(self.n)
+            )
+            self.model.addConstrs(
+                self.x[i] >= -func.M * self.z[i] for i in range(self.n)
+            )
+            self.model.addConstrs(
+                self.h_var[i] >= self.x[i] for i in range(self.n)
+            )
+            self.model.addConstrs(
+                self.h_var[i] >= -self.x[i] for i in range(self.n)
+            )
             self.model.addConstr(
-                self.h >= func.alpha * gp.quicksum(self.h_var[i] for i in range(self.n))
+                self.h
+                >= func.alpha
+                * gp.quicksum(self.h_var[i] for i in range(self.n))
             )
         elif isinstance(func, BigmL2norm):
-            self.h_var = self.model.addVars(self.n, lb=0.0, ub=func.M**2, vtype=GRB.CONTINUOUS, name="h2")
-            self.model.addConstrs(self.x[i] <= func.M * self.z[i] for i in range(self.n))
-            self.model.addConstrs(self.x[i] >= -func.M * self.z[i] for i in range(self.n))
+            self.h_var = self.model.addVars(
+                self.n, lb=0.0, ub=func.M**2, vtype=GRB.CONTINUOUS, name="h2"
+            )
+            self.model.addConstrs(
+                self.x[i] <= func.M * self.z[i] for i in range(self.n)
+            )
+            self.model.addConstrs(
+                self.x[i] >= -func.M * self.z[i] for i in range(self.n)
+            )
             for i in range(self.n):
-                self.model.addQConstr(self.x[i] * self.x[i] <= 2.0 * self.h_var[i] * self.z[i])
-            self.model.addConstr(self.h >= 2.0 * func.beta * gp.quicksum(self.h_var[i] for i in range(self.n)))
+                self.model.addQConstr(
+                    self.x[i] * self.x[i] <= 2.0 * self.h_var[i] * self.z[i]
+                )
+            self.model.addConstr(
+                self.h
+                >= 2.0
+                * func.beta
+                * gp.quicksum(self.h_var[i] for i in range(self.n))
+            )
         elif isinstance(func, BigmPositiveL1norm):
-            self.h_var = self.model.addVars(self.n, lb=0.0, ub=func.M, vtype=GRB.CONTINUOUS, name="h1")
-            self.model.addConstrs(self.x[i] <= func.M * self.z[i] for i in range(self.n))
+            self.h_var = self.model.addVars(
+                self.n, lb=0.0, ub=func.M, vtype=GRB.CONTINUOUS, name="h1"
+            )
+            self.model.addConstrs(
+                self.x[i] <= func.M * self.z[i] for i in range(self.n)
+            )
             self.model.addConstrs(self.x[i] >= 0.0 for i in range(self.n))
-            self.model.addConstrs(self.h_var[i] >= self.x[i] for i in range(self.n))
+            self.model.addConstrs(
+                self.h_var[i] >= self.x[i] for i in range(self.n)
+            )
             self.model.addConstrs(self.h_var[i] >= 0.0 for i in range(self.n))
             self.model.addConstr(
-                self.h >= func.alpha * gp.quicksum(self.h_var[i] for i in range(self.n))
+                self.h
+                >= func.alpha
+                * gp.quicksum(self.h_var[i] for i in range(self.n))
             )
         elif isinstance(func, BigmPositiveL2norm):
-            self.h_var = self.model.addVars(self.n, lb=0.0, ub=func.M**2, vtype=GRB.CONTINUOUS, name="h2")
-            self.model.addConstrs(self.x[i] <= func.M * self.z[i] for i in range(self.n))
+            self.h_var = self.model.addVars(
+                self.n, lb=0.0, ub=func.M**2, vtype=GRB.CONTINUOUS, name="h2"
+            )
+            self.model.addConstrs(
+                self.x[i] <= func.M * self.z[i] for i in range(self.n)
+            )
             self.model.addConstrs(self.x[i] >= 0.0 for i in range(self.n))
             for i in range(self.n):
-                self.model.addQConstr(self.x[i] * self.x[i] <= 2.0 * self.h_var[i] * self.z[i])
-            self.model.addConstr(self.h >= 2.0 * func.beta * gp.quicksum(self.h_var[i] for i in range(self.n)))
+                self.model.addQConstr(
+                    self.x[i] * self.x[i] <= 2.0 * self.h_var[i] * self.z[i]
+                )
+            self.model.addConstr(
+                self.h
+                >= 2.0
+                * func.beta
+                * gp.quicksum(self.h_var[i] for i in range(self.n))
+            )
         elif isinstance(func, Bounds):
-            self.model.addConstrs(self.x[i] <= func.x_ub[i] * self.z[i] for i in range(self.n))
-            self.model.addConstrs(self.x[i] >= func.x_lb[i] * self.z[i] for i in range(self.n))
+            self.model.addConstrs(
+                self.x[i] <= func.x_ub[i] * self.z[i] for i in range(self.n)
+            )
+            self.model.addConstrs(
+                self.x[i] >= func.x_lb[i] * self.z[i] for i in range(self.n)
+            )
             self.model.addConstr(self.h >= 0.0)
         elif isinstance(func, L1L2norm):
-            self.h1_var = self.model.addVars(self.n, lb=0.0, vtype=GRB.CONTINUOUS, name="h1")
-            self.h2_var = self.model.addVars(self.n, lb=0.0, vtype=GRB.CONTINUOUS, name="h2")
+            self.h1_var = self.model.addVars(
+                self.n, lb=0.0, vtype=GRB.CONTINUOUS, name="h1"
+            )
+            self.h2_var = self.model.addVars(
+                self.n, lb=0.0, vtype=GRB.CONTINUOUS, name="h2"
+            )
             self.model.addConstrs(
                 self.h1_var[i] >= self.x[i] for i in range(self.n)
             )
@@ -389,24 +505,46 @@ class GurobiSolver(BaseSolver):
                 self.h1_var[i] >= -self.x[i] for i in range(self.n)
             )
             for i in range(self.n):
-                self.model.addQConstr(self.x[i] * self.x[i] <= 2.0 * self.h2_var[i] * self.z[i])
+                self.model.addQConstr(
+                    self.x[i] * self.x[i] <= 2.0 * self.h2_var[i] * self.z[i]
+                )
             self.model.addConstr(
-                self.h >= func.alpha * gp.quicksum(self.h1_var[i] for i in range(self.n))
-                + 2.0 * func.beta * gp.quicksum(self.h2_var[i] for i in range(self.n))
+                self.h
+                >= func.alpha
+                * gp.quicksum(self.h1_var[i] for i in range(self.n))
+                + 2.0
+                * func.beta
+                * gp.quicksum(self.h2_var[i] for i in range(self.n))
             )
         elif isinstance(func, L2norm):
-            self.h_var = self.model.addVars(self.n, lb=0.0, vtype=GRB.CONTINUOUS, name="h2")
+            self.h_var = self.model.addVars(
+                self.n, lb=0.0, vtype=GRB.CONTINUOUS, name="h2"
+            )
             for i in range(self.n):
-                self.model.addQConstr(self.x[i] * self.x[i] <= 2.0 * self.h_var[i] * self.z[i])
+                self.model.addQConstr(
+                    self.x[i] * self.x[i] <= 2.0 * self.h_var[i] * self.z[i]
+                )
             self.model.addConstr(
-                self.h >= 2.0 * func.beta * gp.quicksum(self.h_var[i] for i in range(self.n))
+                self.h
+                >= 2.0
+                * func.beta
+                * gp.quicksum(self.h_var[i] for i in range(self.n))
             )
         elif isinstance(func, PositiveL2norm):
-            self.h_var = self.model.addVars(self.n, lb=0.0, vtype=GRB.CONTINUOUS, name="h2")
+            self.h_var = self.model.addVars(
+                self.n, lb=0.0, vtype=GRB.CONTINUOUS, name="h2"
+            )
             self.model.addConstrs(self.x[i] >= 0.0 for i in range(self.n))
             for i in range(self.n):
-                self.model.addQConstr(self.x[i] * self.x[i] <= 2.0 * self.h_var[i] * self.z[i])
-            self.model.addConstr(self.h >= 2.0 * func.beta * gp.quicksum(self.h_var[i] for i in range(self.n)))
+                self.model.addQConstr(
+                    self.x[i] * self.x[i] <= 2.0 * self.h_var[i] * self.z[i]
+                )
+            self.model.addConstr(
+                self.h
+                >= 2.0
+                * func.beta
+                * gp.quicksum(self.h_var[i] for i in range(self.n))
+            )
         else:
             raise ValueError(f"Unsupported function type {type(func)}.")
 
@@ -422,7 +560,11 @@ class GurobiSolver(BaseSolver):
         else:
             status = Status.UNKNOWN
 
-        upper_bound = float(self.model.ObjVal) if self.model.Status == GRB.OPTIMAL else np.inf
+        upper_bound = (
+            float(self.model.ObjVal)
+            if self.model.Status == GRB.OPTIMAL
+            else np.inf
+        )
         iter_count = int(self.model.IterCount)
         solve_time = float(self.model.Runtime)
         x = np.zeros(self.n)
@@ -487,7 +629,6 @@ class CplexSolver(MipSolver):
         super().__init__(optimizer_name="cplex", *args, **kwargs)
 
 
-
 def get_solver(type: str, args: dict) -> BaseSolver:
     if type == "el0ps":
         return El0psSolver(**args)
@@ -507,52 +648,54 @@ def get_solver(type: str, args: dict) -> BaseSolver:
         raise ValueError(f"Unknown solver type {type}.")
 
 
-def can_handle_instance(solver: BaseSolver, f: BaseDatafit, h: BasePenalty) -> bool:
-    if type(solver) == El0psSolver:
+def can_handle_instance(
+    solver: BaseSolver, f: BaseDatafit, h: BasePenalty
+) -> bool:
+    if isinstance(solver, El0psSolver):
         return True
-    elif type(solver) == MosekSolver:
+    elif isinstance(solver, MosekSolver):
         if not type(f) in _mip_supports["mosek"]["datafit"]:
             return False
         if not type(h) in _mip_supports["mosek"]["penalty"]:
             return False
         return True
-    elif type(solver) == CplexSolver:
+    elif isinstance(solver, CplexSolver):
         if not type(f) in _mip_supports["cplex"]["datafit"]:
             return False
         if not type(h) in _mip_supports["cplex"]["penalty"]:
             return False
         return True
-    elif type(solver) == OaSolver:
+    elif isinstance(solver, OaSolver):
         return True
-    elif type(solver) == L0bnbSolver:
-        return type(f) in [Leastsquares] and type(h) in [Bigm, L2norm, BigmL2norm]
-    elif type(solver) == MimosaSolver:
+    elif isinstance(solver, L0bnbSolver):
+        return type(f) in [Leastsquares] and type(h) in [
+            Bigm,
+            L2norm,
+            BigmL2norm,
+        ]
+    elif isinstance(solver, MimosaSolver):
         return type(f) in [Leastsquares] and type(h) in [Bigm]
-    elif type(solver) == GurobiSolver:
-        return (
-            type(f) in [
-                Leastsquares,
-                Logistic,
-                Squaredhinge
-            ] and type(h) in [
-                Bigm,
-                BigmL1L2norm,
-                BigmL1norm,
-                BigmL2norm,
-                BigmPositiveL1norm,
-                BigmPositiveL2norm,
-                Bounds,
-                L1L2norm,
-                L2norm,
-                PositiveL2norm,
-            ]
-        )
+    elif isinstance(solver, GurobiSolver):
+        return type(f) in [Leastsquares, Logistic, Squaredhinge] and type(
+            h
+        ) in [
+            Bigm,
+            BigmL1L2norm,
+            BigmL1norm,
+            BigmL2norm,
+            BigmPositiveL1norm,
+            BigmPositiveL2norm,
+            Bounds,
+            L1L2norm,
+            L2norm,
+            PositiveL2norm,
+        ]
     else:
         raise ValueError(f"Unknown solver {solver}.")
 
 
 def can_handle_compilation(solver: BaseSolver) -> bool:
-    return type(solver) in [El0psSolver, OaSolver]
+    return isinstance(solver, (El0psSolver, OaSolver))
 
 
 def get_result(
@@ -564,10 +707,10 @@ def get_result(
     type: str,
     args: Optional[dict],
 ) -> Result:
-    
+
     if args is None:
         args = {}
-    
+
     # Get compiled versions of datafit and penalty and warmup
     # compilation by running the solver with a short time limit
     if can_handle_compilation(solver):
@@ -577,7 +720,7 @@ def get_result(
         solver.time_limit = 5.0
         solver.solve(f, h, A, 0.1 * compute_lmbd_max(f, h, A))
         solver.time_limit = time_limit
-        
+
     if type == "solve":
         result = solver.solve(f, h, A, l)
         print(result)
@@ -585,6 +728,5 @@ def get_result(
         result = Path(**args).fit(solver, f, h, A)
     else:
         raise ValueError(f"Unknown action type {type}.")
-    
+
     return result
-    

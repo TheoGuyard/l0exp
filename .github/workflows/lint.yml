@@ -24,5 +24,4 @@ jobs:
         python -m pip install -U .[dev]
     - name: Lint
       run: |
-        flake8 l0exp
-        flake8 scripts
+        flake8 l0exp --per-file-ignores="l0exp/scripts.py:E501"

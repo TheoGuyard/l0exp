@@ -31,23 +31,29 @@ def get_graphics_data(config: dict):
     results_dir = pathlib.Path(__file__).parent / "results"
     results_fmt = "{}_*.pkl".format(config["experiment"])
     for result_path in pathlib.Path(results_dir).glob(results_fmt):
-        with open(result_path, 'rb') as result_file:
+        with open(result_path, "rb") as result_file:
             result_data = pickle.load(result_file)
 
             result_match = True
-            
+
             if result_data["config"]["experiment"] != config["experiment"]:
                 result_match = False
 
-            if not is_subset_dict(result_data["config"]["dataset"], config["dataset"]):
+            if not is_subset_dict(
+                result_data["config"]["dataset"], config["dataset"]
+            ):
                 result_match = False
 
-            if not is_subset_dict(result_data["config"]["calibration"], config["calibration"]):
+            if not is_subset_dict(
+                result_data["config"]["calibration"], config["calibration"]
+            ):
                 result_match = False
 
-            if not is_subset_dict(result_data["config"]["action"], config["action"]):
+            if not is_subset_dict(
+                result_data["config"]["action"], config["action"]
+            ):
                 result_match = False
-            
+
             for _, solver_config in result_data["config"]["solvers"].items():
                 if config["solvers"]["type"] != "ANY":
                     if solver_config["type"] != config["solvers"]["type"]:
@@ -57,7 +63,7 @@ def get_graphics_data(config: dict):
 
             if result_match:
                 raw_results.append(result_data["results"])
-    
+
     results = {}
     for graphic, graphic_config in config["graphics"].items():
         results[graphic] = {}
@@ -67,33 +73,47 @@ def get_graphics_data(config: dict):
                     if solver_path is None:
                         continue
                     if solver_name not in results[graphic]:
-                        results[graphic][solver_name] = {lmbd: [] for lmbd in solver_path.keys()}
+                        results[graphic][solver_name] = {
+                            lmbd: [] for lmbd in solver_path.keys()
+                        }
                     for lmbd, path_result in solver_path.items():
                         if graphic_config["type"] == "path_time":
-                            results[graphic][solver_name][lmbd].append(path_result.solve_time)
+                            results[graphic][solver_name][lmbd].append(
+                                path_result.solve_time
+                            )
                         elif graphic_config["type"] == "path_value":
-                            results[graphic][solver_name][lmbd].append(path_result.objective_value)
+                            results[graphic][solver_name][lmbd].append(
+                                path_result.objective_value
+                            )
                         elif graphic_config["type"] == "path_nnz":
-                            results[graphic][solver_name][lmbd].append(np.count_nonzero(path_result.x))
+                            results[graphic][solver_name][lmbd].append(
+                                np.count_nonzero(path_result.x)
+                            )
                         else:
-                            raise ValueError(f"Unknown graphic type '{graphic_config['type']}'")
+                            raise ValueError(
+                                f"Unknown graphic '{graphic_config['type']}'"
+                            )
         elif graphic_config["type"].startswith("solve_"):
             if graphic_config["type"] == "solve_profile":
                 time_grid = np.logspace(
                     np.log10(graphic_config["args"].get("time_min", 1e-4)),
-                    np.log10(graphic_config["args"].get("time_max", 1e+3)),
-                    graphic_config["args"].get("time_num", 70)
+                    np.log10(graphic_config["args"].get("time_max", 1e3)),
+                    graphic_config["args"].get("time_num", 70),
                 )
                 for raw_result in raw_results:
                     for solver_name, solver_result in raw_result.items():
                         if solver_result is None:
                             continue
                         if solver_name not in results[graphic]:
-                            results[graphic][solver_name] = {time_step: [0] for time_step in time_grid}
+                            results[graphic][solver_name] = {
+                                time_step: [0] for time_step in time_grid
+                            }
                         if solver_result.status == Status.OPTIMAL:
                             for time_step in time_grid:
                                 if solver_result.solve_time <= time_step:
-                                    results[graphic][solver_name][time_step][0] += 1
+                                    results[graphic][solver_name][time_step][
+                                        0
+                                    ] += 1
                 if graphic_config["args"].get("normalize", False):
                     for solver_name, solver_data in results[graphic].items():
                         tot_solved = solver_data[time_grid[-1]][0]
@@ -108,12 +128,15 @@ def get_graphics_data(config: dict):
                         if solver_name not in results[graphic]:
                             results[graphic][solver_name] = {"solve_time": []}
                         if solver_result.status == Status.OPTIMAL:
-                            results[graphic][solver_name]["solve_time"].append(solver_result.solve_time)
+                            results[graphic][solver_name]["solve_time"].append(
+                                solver_result.solve_time
+                            )
         else:
-            raise ValueError(f"Unknown graphic type '{graphic_config['type']}'")
-            
-    return results
+            raise ValueError(
+                f"Unknown graphic type '{graphic_config['type']}'"
+            )
 
+    return results
 
 
 parser = argparse.ArgumentParser()
@@ -136,7 +159,7 @@ graphics_data = get_graphics_data(config)
 
 if args.save:
 
-    for (graphic, graphic_data) in graphics_data.items():
+    for graphic, graphic_data in graphics_data.items():
 
         table = pd.DataFrame()
 
@@ -145,17 +168,16 @@ if args.save:
             table["lmbd_ratio"] = np.logspace(
                 np.log10(config["action"]["args"]["lmbd_max"]),
                 np.log10(config["action"]["args"]["lmbd_min"]),
-                config["action"]["args"]["lmbd_num"]
+                config["action"]["args"]["lmbd_num"],
             )
             table["limit_time"] = np.full(
-                len(table),
-                config["solvers"]["args"]["time_limit"]
+                len(table), config["solvers"]["args"]["time_limit"]
             )
         elif config["graphics"][graphic]["type"] == "solve_profile":
             table["time"] = np.logspace(
                 np.log10(config["graphics"][graphic]["args"]["time_min"]),
                 np.log10(config["graphics"][graphic]["args"]["time_max"]),
-                config["graphics"][graphic]["args"]["time_num"]
+                config["graphics"][graphic]["args"]["time_num"],
             )
 
         maxrow = max([len(values) for values in graphic_data.values()])
@@ -177,33 +199,42 @@ if args.save:
 
             table[col_xlabel] = col_xvalue
             table[col_ylabel] = col_yvalue
-        
+
         output_dir = pathlib.Path(__file__).parent / "saves"
         output_file = f"{config['experiment']}_{graphic}.csv"
         output_path = output_dir / output_file
         if output_path.exists():
-            raise FileExistsError(f"Output file '{output_file}' already exists.")
+            raise FileExistsError(
+                f"Output file '{output_file}' already exists."
+            )
         else:
             table.to_csv(output_path, index=False)
             print(f"Saved {graphic} graphic data to '{output_file}'")
 
 else:
 
-
-    labels = set([label for graphic in graphics_data.values() for label in graphic.keys()])
+    labels = set(
+        [
+            label
+            for graphic in graphics_data.values()
+            for label in graphic.keys()
+        ]
+    )
     colors = plt.cm.tab20(np.linspace(0, 1, len(labels)))
     color_map = {label: colors[i] for i, label in enumerate(labels)}
     global_lines = []
     global_labels = []
 
-    fig, axs = plt.subplots(1, len(graphics_data), figsize=(4 * len(graphics_data), 4))
+    fig, axs = plt.subplots(
+        1, len(graphics_data), figsize=(4 * len(graphics_data), 4)
+    )
     for i, (graphic, graphic_data) in enumerate(graphics_data.items()):
-        
+
         ax = axs[i] if len(graphics_data) > 1 else axs
 
         for label, label_data in graphic_data.items():
-                
-            (line, ) = ax.plot(
+
+            (line,) = ax.plot(
                 label_data.keys(),
                 [np.mean(yvals) for _, yvals in label_data.items()],
                 marker=".",
@@ -211,12 +242,15 @@ else:
                 label=label,
             )
 
-            print(f",{[float(np.mean(yvals)) for _, yvals in label_data.items()][0]}", end="")
+            print(
+                f",{[float(np.mean(v)) for _, v in label_data.items()][0]}",
+                end="",
+            )
 
             if i == 0:
                 global_lines.append(line)
                 global_labels.append(label)
-        
+
         for arg, val in config["graphics"][graphic]["args"].items():
             if arg == "xlabel":
                 ax.set_xlabel(val)

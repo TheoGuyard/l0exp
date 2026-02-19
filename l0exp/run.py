@@ -12,7 +12,6 @@ from l0exp.solver import get_solver, get_result, can_handle_instance
 
 from el0ps.utils import compute_lmbd_max
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", type=str, required=True)
 parser.add_argument("--save", action="store_true")
@@ -36,10 +35,10 @@ print()
 
 # Calibrate problem datafit, penalty and l0-norm weight
 print("Calibrating problem...")
-f, h, l = get_calibration(A, y, x, **config["calibration"])
-print(f"  datafit: {f} { {k: v for k, v in f.params_to_dict().items() if k != 'y'} }")
+f, h, lmbd = get_calibration(A, y, x, **config["calibration"])
+print(f"  datafit: {f} {f.params_to_dict()}")
 print(f"  penalty: {h} {h.params_to_dict()}")
-print(f"  lambda : {l} ({l / compute_lmbd_max(f, h, A):.2e} * lambda_max)")
+print(f"  lambda : {lmbd} ({lmbd / compute_lmbd_max(f, h, A):.2e} * lmbd_max)")
 print()
 
 
@@ -47,18 +46,18 @@ print()
 results = {}
 for solver_name, solver_config in config["solvers"].items():
 
-    try:    
+    try:
         solver = get_solver(**solver_config)
     except Exception as e:
         print(f"Failed to initialize solver {solver_name} with error: {e}")
         print()
         results[solver_name] = None
         continue
-    
+
     if can_handle_instance(solver, f, h):
         print(f"Running {solver_name}...")
         try:
-            result = get_result(solver, f, h, A, l, **config["action"])
+            result = get_result(solver, f, h, A, lmbd, **config["action"])
         except Exception as e:
             print(f"  Solver failed with error: {e}")
             result = None
@@ -66,7 +65,7 @@ for solver_name, solver_config in config["solvers"].items():
         print(f"Skipping {solver_name}")
         result = None
     print()
-    
+
     results[solver_name] = result
 
 
@@ -78,8 +77,8 @@ if args.save:
     file = f"{name}_{time}_{uuid}.pkl"
     path = pathlib.Path(__file__).parent / "results" / file
     data = {
-        "config" : config,
-        "params" : h.params_to_dict() | {"lambda": l},
+        "config": config,
+        "params": h.params_to_dict() | {"lambda": lmbd},
         "results": results,
     }
 
