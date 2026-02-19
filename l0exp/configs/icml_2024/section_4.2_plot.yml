@@ -1,0 +1,29 @@
+experiment: section_4.2
+
+dataset:
+  type: hardcoded
+  args: {name: riboflavin, normalize: true}
+
+calibration:
+  type: l0learn
+  args:
+    datafit : Leastsquares
+    penalty : BigmL2norm
+
+solvers:
+  type: ANY
+  args: {time_limit: 3600., relative_gap: 1.e-8, verbose: false}
+
+action:
+  type: path
+  args: {lmbd_max: 1.0, lmbd_min: 0.01, lmbd_num: 21}
+
+graphics:
+  path_time:
+    type: path_time
+    args: 
+      xlabel      : lmbd
+      xscale      : log
+      invert_xaxis: true
+      ylabel      : time
+      yscale      : log

@@ -1,0 +1,38 @@
+experiment: section_6.1
+
+dataset:
+  type: hardcoded
+  args: {name: kits, normalize: true}
+
+calibration:
+  type: hardcoded
+  args:
+    datafit       : Leastsquares
+    penalty       : BigmL1L2norm
+    lmbd          : 0.04728410277698789
+    datafit_params: {}
+    penalty_params: {M: 0.5759839750528222, alpha: 0.1, beta: 1.0}
+
+solvers:
+  el0ps:
+    type: el0ps
+    args: {time_limit: 3600., relative_gap: 1.e-8, verbose: false}
+  l0bnb:
+    type: l0bnb
+    args: {time_limit: 3600., relative_gap: 1.e-8, verbose: false}
+  mimosa:
+    type: mimosa
+    args: {time_limit: 3600., relative_gap: 1.e-8, verbose: false}
+  gurobi:
+    type: gurobi
+    args: {time_limit: 3600., relative_gap: 1.e-8, verbose: false}
+  mosek:
+    type: mosek
+    args: {time_limit: 3600., relative_gap: 1.e-8, verbose: false}
+  oa:
+    type: oa
+    args: {time_limit: 3600., relative_gap: 1.e-8, verbose: false}
+
+action:
+  type: path
+  args: {lmbd_max: 0.1, lmbd_min: 0.01, lmbd_num: 20}

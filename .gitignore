@@ -1,12 +1,9 @@
 .DS_Store
 .vscode
 
-!**/datasets/.gitkeep
-
+**/datasets/*.pkl
 **/results/*.pkl
 **/results/*.csv
-**/saves/*.pkl
-**/saves/*.csv
 
 # python
 build/

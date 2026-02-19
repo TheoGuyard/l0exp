@@ -1,0 +1,196 @@
+###############################################################################
+# Template configuration file for running experiments.
+#
+# An experiment always follows the same process:
+#
+#   1) generate problem data          (see 'dataset' keyword)
+#   2) calibrate hyperparameters      (see 'calibration' keyword)
+#   3) for each solver                (see 'solvers' keyword)
+#         3a) execute an action       (see 'action' keyword)
+#         3b) save results
+#
+# Each step is defined by one of the keywords defined below in the
+# configuration file.
+###############################################################################
+
+
+###############################################################################
+# experiment
+###############################################################################
+
+# description : Name of the experiment.
+# expected    : String.
+# details     : Used for saving and recovering all results corresponding to
+#               different runs of the same experiment.
+experiment: template
+
+
+###############################################################################
+# dataset
+###############################################################################
+
+# description : Specifies how the problem data is generated.
+# expected    : dictionary with entries ['type', 'args'].
+# details     : The dataset generated always corresponds to a triplet (A,y,x)
+#               where x is potentially None. The following 'type' and 'args'
+#               can be used:.
+#   
+#   - type: mixture
+#     args: {k: <int>, m: <int>, n: <int>, r: <float>, s: <float>, distrib_name: <str>, distrib_args: <dict>}
+#     
+#     Generate x as a sparse vector of dimension n, with k non-zero entries
+#     evenly spaced. Their amplitude is sampled according to the 'distrib_name'
+#     with 'distrib_args' arguments (see 'sample_distribution()' in
+#     datasets.py). Then a matrix A of shape (m,n) is generated with rows as
+#     a ~ N(0,K) where K is a correlation matrix inducing correlation r^|i-j|
+#     between columns i and j. Finally, a vector y is generated as y = Ax + e 
+#     where e is a noise vector such that E[||e||_2] = E[||Ax||_2] / s.
+#   
+#   - type: synthetic
+#     args: {k: <int>, m: <int>, n: <int>, r: <float>, s: <float>}
+#     
+#     Shortcut for 'mixture' with distrib_name=dirac and distrib_name={}.
+#   
+#   - type: realworld
+#     args: {name: <str>, normalize: <bool>}
+# 
+#     Load a real-world machine learning dataset with feature matrix A and
+#     target vector y (either real for regression or with values in {-1,+1} for
+#     classifications). See 'get_dataset_realworld()' in datasets.py for
+#     available dataset names.
+#
+#   - type: hardcoded
+#     args: {name: <str>, normalize: <bool>}
+#     
+#     Load a dataset from a local file. The file must be saved as
+#     l0exp/data/datasets/<name>.pkl under the pickle format, and must contain
+#     a dictionary with keys 'A', 'y', and optionally 'x'.
+
+dataset:
+  type: mixture
+  args: {k: 10, m: 500, n: 1000, r: 0.5, s: 10., distrib_name: gaussian, distrib_args: {scale: 1.0}}
+  # type: synthetic
+  # args: {k: 5, m: 100, n: 200, r: 0.5, s: 10.}
+  # type: realworld
+  # args: {name: gisette, normalize: true}
+  # type: hardcoded
+  # args: {name: mydataset, normalize: true}
+
+
+###############################################################################
+# calibration
+###############################################################################
+
+# description : specifies how the problem hyperparameters are calibrated
+# expected    : dictionary with entries ['type', 'args'].
+# details     : calibration involves choosing the datafit and penalty with 
+#               their parameters, as well as the value of lmbd (the L0-norm)
+#               regularization weight. The following 'type' and 'args' can be
+#               used:
+#
+#   - type: mixture
+#   - args: {distrib_name: <str>, distrib_args: <dict>}
+#
+#   Calibrate problem data to achieve maximum likelihood on a dataset generated
+#   with the 'mixture' dataset type. The 'distrib_name' and 'distrib_args' must
+#   match those used for generating the dataset.
+#
+#   - type: hardcoded
+#   - args: {datafit: <str>, penalty: <str>, lmbd: <float>, datafit_params: <dict>, penalty_params: <dict>}
+#
+#   Calibrate problem data with hardcoded values. The 'datafit' and 'penalty'
+#   must be valid datafit and penalty names (see 'get_calibration_hardcoded()'
+#   in calibrations.py). The 'datafit_params' and 'penalty_params' are
+#   dictionaries with the parameters to be passed to the datafit and penalty
+#   constructors.
+#
+#   - type: l0learn
+#   - args: {datafit: <str>, penalty: <str>}
+#
+#   Calibrate problem data with the l0learn package. The 'datafit' and
+#   'penalty' must be valid datafit and penalty names for l0learn (see
+#   'get_calibration_l0learn()' in calibrations.py).
+#
+#   - type: cv
+#   - args: {datafit: <str>, penalty: <str>, verbose: <bool>, time_limit: <float>}
+#
+#   Calibrate problem data with exact cross-validation. The 'datafit' and
+#   'penalty' must be valid datafit and penalty names for el0ps
+#   (see 'get_calibration_cv()' in calibrations.py). The 'verbose' and
+#   'time_limit' arguments are passed to el0ps when performing the
+#   cross-validation.
+
+calibration:
+  type: mixture
+  args: {distrib_name: gaussian, distrib_args: {scale: 1.0}}
+  # type: hardcoded
+  # args: {datafit: Leastsquares, penalty: L2norm, lmbd: 0.1, datafit_params: {}, penalty_params: {beta: 1.0}}
+  # type: l0learn
+  # args: {datafit: Leastsquares, penalty: BigmL2norm}
+  # type: cv
+  # args: {datafit: Leastsquares, penalty: BigmL1L2norm, verbose: true, time_limit: 10.}
+
+
+###############################################################################
+# solvers
+###############################################################################
+
+# description : specifies the solvers to be run on the problem.
+# expected    : dictionary with entries ['type', 'args'].
+# details     : for each solver, the 'type' and 'args' must be specified. The
+#               following 'type' can be used:
+#                 - el0ps  : See https://github.com/TheoGuyard/El0ps
+#                 - l0bnb  : See https://github.com/mazumder-lab/l0bnb
+#                 - mimosa : See https://gitlab.univ-nantes.fr/ls2n-sims/mimosa-solver/-/tree/samaingw?ref_type=heads
+#                 - gurobi : See https://www.gurobi.com/ (requires a license, free for academics)
+#                 - mosek  : See https://www.mosek.com/ (requires a license, free for academics)
+#                 - oa     : See https://epubs.siam.org/doi/abs/10.1137/20M1346778 (requires gurobi as backend solver)
+#               The following 'args' can be used:
+#                 - time_limit: Time limit in seconds for the solver.
+#                 - relative_gap: Relative optimality gap target for the solver.
+#                 - verbose: Toggle solver verbosity.
+
+solvers:
+  el0ps:
+    type: el0ps
+    args: {time_limit: 60., relative_gap: 1.e-8, verbose: false}
+  l0bnb:
+    type: l0bnb
+    args: {time_limit: 60., relative_gap: 1.e-8, verbose: false}
+  mimosa:
+    type: mimosa
+    args: {time_limit: 60., relative_gap: 1.e-8, verbose: false}
+  gurobi:
+    type: gurobi
+    args: {time_limit: 60., relative_gap: 1.e-8, verbose: false}
+  mosek:
+    type: mosek
+    args: {time_limit: 60., relative_gap: 1.e-8, verbose: false}
+  oa:
+    type: oa
+    args: {time_limit: 60., relative_gap: 1.e-8, verbose: false}
+
+
+###############################################################################
+# action
+###############################################################################
+
+# description : specifies the action to be performed for each solver.
+# expected    : dictionary with entries ['type', 'args'].
+# details     : the following 'type' can be used:
+#                 - solve : Solve the problem. Do not require any 'args'.
+#                 - path  : Compute a regularization path. The 'args' can
+#                           contain the following entries:
+#                     - lmbd_max: maximum value lambda/lambda_max in the path
+#                     - lmbd_min: minimum value lambda/lambda_max in the path
+#                     - lmbd_num: number of values lambda/lambda_max in the
+#                       path (spanned over a logarithmic scale)
+
+
+action:
+  type: solve
+  args:
+  # type: path
+  # args: {lmbd_max: 1.0, lmbd_min: 0.01, lmbd_num: 21}
+
+

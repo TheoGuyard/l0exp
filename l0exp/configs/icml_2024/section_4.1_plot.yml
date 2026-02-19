@@ -1,0 +1,35 @@
+experiment: section_4.1
+
+dataset:
+  type: synthetic
+  args: 
+    k           : 10
+    m           : 500
+    n           : 1000
+    r           : 0.9
+    s           : 10.
+    seed        : null
+
+calibration:
+  type: synthetic
+  args:
+
+solvers:
+  type: ANY
+  args: {time_limit: 3600., relative_gap: 1.e-8, verbose: false}
+
+action:
+  type: solve
+  args: {}
+
+graphics:
+  solve_profile:
+    type: solve_profile
+    args: 
+      normalize : false
+      time_min  : 1.e-2
+      time_max  : 1.e+4
+      time_num  : 70
+      xscale    : log
+      xlabel    : time
+      ylabel    : solved

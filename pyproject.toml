@@ -5,24 +5,26 @@ readme = "README.md"
 license = {file = "LICENSE", content-type = "text/markdown"}
 authors = [{name = "Theo Guyard", email = "theo.guyard.job@gmail.com"}]
 dependencies = [
-    "el0ps",
+    "el0ps @ git+https://github.com/TheoGuyard/El0ps.git",
     "exprun",
     "gurobipy",
+    "jupyter",
     "l0bnb",
-    "l0learn",
+    "libsvmdata",
     "matplotlib",
     "Mosek",
     "numba",
     "numpy",
+    "openml",
     "pandas",
     "pyyaml",
+    "rpy2",
     "scipy",
     "scikit-learn",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-mip = []
 dev = ["black", "flake8"]
 
 [tool.setuptools.dynamic]
