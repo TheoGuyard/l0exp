@@ -1,0 +1,140 @@
+###############################################################################
+# Template configuration file for plotting experiments.
+#
+# The plotting always follows the same process:
+#
+#   1) find all files in results/ that match the 'experiment', 'dataset', 
+#     'calibration', and 'action' keywords
+#   2) extract results for each result found
+#   3) compute average over similar runs
+#   4) display results
+#
+###############################################################################
+
+
+###############################################################################
+# experiment
+###############################################################################
+
+experiment: template
+
+
+###############################################################################
+# dataset
+###############################################################################
+
+# See 'dataset' keyword in 'run_template.yml' for more information.
+
+dataset:
+  type: mixture
+  args: {k: 10, m: 500, n: 1000, r: 0.5, s: 10., distrib_name: gaussian, distrib_args: {scale: 1.0}}
+  # type: synthetic
+  # args: {k: 5, m: 100, n: 200, r: 0.5, s: 10.}
+  # type: realworld
+  # args: {name: gisette, normalize: true}
+  # type: hardcoded
+  # args: {name: mydataset, normalize: true}
+
+
+###############################################################################
+# calibration
+###############################################################################
+
+# See 'calibration' keyword in 'run_template.yml' for more information.
+
+calibration:
+  type: mixture
+  args: {distrib_name: gaussian, distrib_args: {scale: 1.0}}
+  # type: hardcoded
+  # args: {datafit: Leastsquares, penalty: L2norm, lmbd: 0.1, datafit_params: {}, penalty_params: {beta: 1.0}}
+  # type: l0learn
+  # args: {datafit: Leastsquares, penalty: BigmL2norm}
+  # type: cv
+  # args: {datafit: Leastsquares, penalty: BigmL1L2norm, verbose: true, time_limit: 10.}
+
+
+###############################################################################
+# solvers
+###############################################################################
+
+# description : specifies the solvers to be be plotted on the problem.
+# expected    : dictionary with entries ['type', 'args'].
+# details     : same as in 'run_template.yml'. Use `type: ANY` to consider any
+#               solver found in the matching results.
+
+solvers:
+  type: ANY
+  args: {time_limit: 60., relative_gap: 1.e-8, verbose: false}
+
+
+###############################################################################
+# action
+###############################################################################
+
+# See 'action' keyword in 'run_template.yml' for more information.
+
+action:
+  type: solve
+  args:
+  # type: path
+  # args: {lmbd_max: 1.0, lmbd_min: 0.01, lmbd_num: 21}
+
+
+###############################################################################
+# graphic
+###############################################################################
+
+# description : specifies the graphics to be plotted.
+# expected    : dictionary with the graphic name as key and another dictionary
+#               as value with entries ['type', 'args'].
+# details     : the following 'type' can be used:
+#                
+#               - type: solve_statistics
+#                 args: {}
+#                 Display the solve statistics for each solver.
+#
+#              - type: solve_profile
+#                args: {normalize: <bool>, time_min: <float>,
+#                       time_max: <float>, time_num: <int>}
+#                Display the number of solved instances as a function of time
+#                budget, with `time_num` points between `time_min` and
+#                `time_max` over a log scale. If `normalize` is true, the
+#                number of solved instances is normalized by the total number of
+#                instances.
+#
+#              - type: path_time
+#                args: {}
+#                Display the time taken by each solver to solve the problem
+#                at given value of lambda/lambda_max in a regularization path.
+#
+#             In addition, the following 'args' can be used for all graphics:
+#               - xlabel: label for the x-axis
+#               - xscale: scale for the x-axis (linear or log)
+#               - invert_xaxis: whether to invert the x-axis
+#               - ylabel: label for the y-axis
+#               - yscale: scale for the y-axis (linear or log)  
+
+graphics:
+  solve_statistics:
+    type: solve_statistics
+    args:
+      ylabel: time
+      yscale: log
+  solve_profile:
+    type: solve_profile
+    args: 
+      normalize : false
+      time_min  : 1.e-2
+      time_max  : 1.e+4
+      time_num  : 70
+      xscale    : log
+      xlabel    : time
+      ylabel    : solved
+  path_time:
+    type: path_time
+    args: 
+      xlabel      : lmbd
+      xscale      : log
+      invert_xaxis: true
+      ylabel      : time
+      yscale      : log

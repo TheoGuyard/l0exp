@@ -1,0 +1,38 @@
+.DS_Store
+.vscode
+
+**/datasets/*.pkl
+**/results/*.pkl
+**/results/*.csv
+
+# python
+build/
+dist/
+*.egg-info/
+*.egg
+*.py[cod]
+__pycache__/
+*.so
+*~
+
+# venv
+.venv
+.python-version
+
+# pytest
+.pytest_cache
+.cache
+
+# coverage
+.coverage
+htmlcov
+
+# sphinx
+/doc/_build/
+/doc/gen_modules/
+/doc/generated/
+/doc/auto_examples/
+/doc/source/generated/
+
+# pyomo
+*.log

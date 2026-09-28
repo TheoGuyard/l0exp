@@ -1,0 +1,38 @@
+[project]
+name = "l0exp"
+description = "Numerical experiments for L0-norm problems"
+readme = "README.md"
+license = {file = "LICENSE", content-type = "text/markdown"}
+authors = [{name = "Theo Guyard", email = "theo.guyard.job@gmail.com"}]
+dependencies = [
+    "el0ps @ git+https://github.com/TheoGuyard/El0ps.git",
+    "exprun",
+    "gurobipy",
+    "jupyter",
+    "l0bnb",
+    "libsvmdata",
+    "matplotlib",
+    "Mosek",
+    "numba",
+    "numpy",
+    "openml",
+    "pandas",
+    "pyyaml",
+    "rpy2",
+    "scipy",
+    "scikit-learn",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = ["black", "flake8"]
+
+[tool.setuptools]
+packages = ["l0exp"]
+
+[tool.setuptools.dynamic]
+version = {attr = "l0exp.__version__"}
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
