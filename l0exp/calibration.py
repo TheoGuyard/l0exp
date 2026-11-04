@@ -2,15 +2,15 @@ import inspect
 import numpy as np
 import rpy2.robjects as ro
 import rpy2.robjects.conversion as roco
-from copy import deepcopy
 from itertools import product
+from numba import njit
 from rpy2.robjects import numpy2ri
 from rpy2.robjects.packages import importr
 from scipy.sparse import csc_matrix
 from sklearn.metrics import f1_score
-from el0ps.datafit import BaseDatafit, Leastsquares
+from sklearn.model_selection import KFold
+from el0ps.datafit import Leastsquares
 from el0ps.penalty import (
-    BasePenalty,
     Bigm,
     BigmL1norm,
     BigmL2norm,
@@ -19,12 +19,136 @@ from el0ps.penalty import (
     PositiveL2norm,
     BigmPositiveL1norm,
     L1L2norm,
-    Bounds
+    Bounds,
 )
 from el0ps.datafit import *  # noqa
 from el0ps.penalty import *  # noqa
-from el0ps.path import Path
-from el0ps.solver import BnbSolver
+from el0ps.compilation import compiled_clone
+from el0ps.solver import BoundSolver
+from el0ps.utils import compute_lmbd_max
+
+
+@njit
+def _solve_omp(f, A, h, lmbd, max_iter=1_000, tol=1e-4):
+    """Greedy forward selection until the objective cannot decrease."""
+    m, n = A.shape
+    x = np.zeros(n)
+    w = np.zeros(m)  # w = A @ x
+    v = f.value(w)
+    support = np.zeros(0, dtype=np.int64)
+    visited = np.zeros(n, dtype=np.bool_)
+    g = np.abs(A.T @ f.gradient(w))
+    for _ in range(min(m, n)):
+        # Select next index to add to the support
+        j = np.argmax(g)
+        if g[j] <= 0.0:
+            break
+        visited[j] = True
+        g[j] = -np.inf
+        support_new = np.append(support, j)
+
+        # Recover solution on new support by minimizing f(Ax) + h(x)
+        A_new = np.ascontiguousarray(A[:, support_new])
+        lip = f.gradient_lipschitz_constant() * np.linalg.norm(A_new, 2) ** 2
+        eta = 1.0 / lip
+        x_sub = np.copy(x[support_new])
+        z = x_sub.copy()
+        t = 1.0
+        for _ in range(max_iter):
+            x_old = x_sub
+            # Gradient step over f(Ax)
+            u = z - eta * (A_new.T @ f.gradient(A_new @ z))
+            # Proximal step over eta * h(x)
+            x_sub = np.empty_like(u)
+            for k in range(u.size):
+                x_sub[k] = h.prox(support_new[k], u[k], eta)
+            # Momentum step
+            t_new = 0.5 * (1.0 + np.sqrt(1.0 + 4.0 * t**2))
+            z = x_sub + ((t - 1.0) / t_new) * (x_sub - x_old)
+            t = t_new
+            # Stationary check
+            if np.linalg.norm(x_sub - x_old) <= tol * max(
+                1.0, np.linalg.norm(x_sub)
+            ):
+                break
+
+        # Discard j if it is not used by the solution
+        if x_sub[-1] == 0.0:
+            continue
+        w_new = A_new @ x_sub
+        v_new = f.value(w_new)
+        for k in range(support_new.size):
+            v_new += h.value(support_new[k], x_sub[k])
+
+        # Non-decreasing check
+        if v - v_new <= lmbd:
+            break
+
+        support, w, v = support_new, w_new, v_new
+        x[support] = x_sub
+        g = np.abs(A.T @ f.gradient(w))
+        g[visited] = -np.inf
+
+    return x
+
+
+@njit
+def _solve_iht(f, A, h, lmbd, max_iter=1_000, tol=1e-4):
+    """Iterative hard thresholding heuristic over the L0-problem, with a step
+    size selected by backtracking line search."""
+    # Initial step size from the per-coordinate curvature of f(Ax)
+    lip = f.gradient_lipschitz_constant() * np.max(np.sum(A**2, axis=0))
+    eta = 1.0 / lip
+    x = np.zeros(A.shape[1])
+    w = A @ x
+    fw = f.value(w)
+    for _ in range(max_iter):
+        g = A.T @ f.gradient(w)
+        while True:
+            # Gradient step over f(Ax)
+            u = x - eta * g
+            # Thresholding step over g(x) = eta * (lmbd * ||x||_0 + h(x))
+            x_new = np.zeros_like(u)
+            for i in range(u.size):
+                v = h.prox(i, u[i], eta)
+                r = (0.5 / eta) * (u[i] ** 2 - (u[i] - v) ** 2)
+                if r - h.value(i, v) > lmbd:
+                    x_new[i] = v
+            # Sufficient decrease check
+            d = x_new - x
+            w_new = A @ x_new
+            fw_new = f.value(w_new)
+            if fw_new <= fw + g @ d + (0.5 / eta) * (d @ d):
+                break
+            eta *= 0.5
+        x_old = x
+        x, w, fw = x_new, w_new, fw_new
+        # Stationary check
+        if np.linalg.norm(x - x_old) <= tol * max(1.0, np.linalg.norm(x)):
+            break
+    return x
+
+
+def _solve_cvx(f, A, h, lmbd, max_iter=1_000, tol=1e-4):
+    """Convex relaxation of the L0-problem, solved with el0ps' BoundSolver at
+    the root node of the Branch-and-Bound tree (all entries relaxed)."""
+    n = A.shape[1]
+    A = np.asfortranarray(A)
+    solver = compiled_clone(BoundSolver(iter_limit=max_iter, relative_tol=tol))
+    solver.setup(f, h, A, lmbd)
+    solver.bound(
+        f,
+        h,
+        A,
+        lmbd,
+        np.zeros(n, dtype=np.bool_),  # S0
+        np.zeros(n, dtype=np.bool_),  # S1
+        np.ones(n, dtype=np.bool_),  # Sb
+        np.zeros(n),  # x
+        np.inf,  # ub
+        False,  # upper
+    )
+    return solver.x
 
 
 def dgCMatrix_to_numpy(X):
@@ -45,6 +169,7 @@ def get_calibration_hardcoded(
     lmbd: float = 1.0,
     datafit_params: dict = {},
     penalty_params: dict = {},
+    **kwargs,
 ):
 
     datafit_type = eval(datafit)
@@ -211,81 +336,100 @@ def get_calibration_cv(
     x,
     datafit,
     penalty,
+    method: str = "cvx",
     nfolds: int = 10,
-    time_limit: float = 60.0,
+    grid_values: list = np.logspace(0, -4, 11),
+    lmbd_values: list = np.logspace(0, -4, 11),
+    factor: float = 1.5,
+    seed: int = None,
     verbose: bool = False,
     **kwargs,
 ):
+    """Calibrate the problem hyperparameters by k-fold cross-validation.
 
-    m, n = A.shape
+    The penalty hyperparameters alpha and beta (when present) are searched
+    over the grid m * ``grid_values`` and the L0-norm weight lmbd over the
+    grid m * ``lmbd_values``, where m is the number of samples. For each grid
+    point and each training fold, an approximate solution of the
+    L0-regularized problem is computed with a ``method`` ("omp", "iht" or "cvx")
+    and the datafit value on the held-out fold is averaged over folds. The
+    penalty hyperparameters with the smallest cross-validation error over all
+    values of lmbd are selected, along with the corresponding lmbd.
 
-    f: BaseDatafit = eval(datafit)(y)
+    The Big-M constraint is discarded during the calibration and is set a
+    posteriori as ``M = factor * ||xhat||_inf`` where ``xhat`` is the
+    approximate solution obtained on the full dataset with the selected
+    hyperparameters.
+    """
 
-    M = np.max(np.abs(np.linalg.lstsq(A, y, rcond=None)[0]))
+    MAP_METHODS = {"omp": _solve_omp, "iht": _solve_iht, "cvx": _solve_cvx}
 
-    grid_params = {}
+    penalty_type = eval(penalty)
+    penalty_args = set(inspect.signature(penalty_type.__init__).parameters)
+    penalty_args.remove("self")
+    if not set(penalty_args).issubset({"M", "alpha", "beta"}):
+        raise ValueError(f"Unsupported {penalty} for cv calibration.")
 
-    if "Bigm" in penalty:
-        grid_params["M"] = M * np.array([1.0, 2.0, 5.0, 10.0])
-    if "L1" in penalty:
-        grid_params["alpha"] = m * np.logspace(-3, 0, 4)
-    if "L2" in penalty:
-        grid_params["beta"] = m * np.logspace(-3, 0, 4)
+    solve = MAP_METHODS[method]
+    A = np.ascontiguousarray(A, dtype=float)
+    m, _ = A.shape
+    f = eval(datafit)(y)
 
-    grid_keys = list(grid_params.keys())
-    grid_vals = list(grid_params.values())
-    grid_params = [dict(zip(grid_keys, c)) for c in list(product(*grid_vals))]
+    def get_penalty(params, num_samples):
+        kwargs = {k: num_samples * v for k, v in params.items()}
+        if "M" in penalty_args:
+            kwargs["M"] = np.inf  # calibrated a posteriori
+        return penalty_type(**kwargs)
 
-    solver = BnbSolver(time_limit=time_limit, verbose=False)
-
-    best_cvs = np.inf
-    best_nnz = None
-    best_p = None
-    best_l = None
+    # Hyperparameter grid (relative to the number of samples)
+    keys = [k for k in ["alpha", "beta"] if k in penalty_args]
+    grid = [dict(zip(keys, v)) for v in product(grid_values, repeat=len(keys))]
 
     if verbose:
-        print("Starting CV calibration")
+        print(f"Starting CV calibration...")
 
-    for params in grid_params:
-
+    # Cross-validation loop
+    fd = list(KFold(nfolds, shuffle=True, random_state=seed).split(A))
+    cv = np.zeros((len(grid), len(lmbd_values)))
+    for p, params in enumerate(grid):
+        for train, test in fd:
+            # Discard features that are all-zero over the training fold
+            cols = np.flatnonzero(np.any(A[train] != 0.0, axis=0))
+            A_train = np.ascontiguousarray(A[np.ix_(train, cols)])
+            A_test = A[np.ix_(test, cols)]
+            f_train = eval(datafit)(y[train])
+            f_test = eval(datafit)(y[test])
+            h = get_penalty(params, train.size)
+            lmbd_max = compute_lmbd_max(f_train, h, A_train)
+            f_train_jit, h_jit = compiled_clone(f_train), compiled_clone(h)
+            for l, lmbd in enumerate(lmbd_max * np.asarray(lmbd_values)):
+                x = solve(f_train_jit, A_train, h_jit, lmbd, **kwargs)
+                cv[p, l] += f_test.value(A_test @ x) / test.size / nfolds
         if verbose:
-            print(f"Testing parameters: {params}...")
+            l = np.argmin(cv[p])
+            print(
+                f"  cv={cv[p, l]:.4e} at lmbd={lmbd_values[l]:.2e}*lmbd_max "
+                f"for params {params}"
+            )
 
-        h: BasePenalty = eval(penalty)(**params)
+    # Select the hyperparameters with the best cv error over all lmbd values
+    p, l = np.unravel_index(np.argmin(cv), cv.shape)
+    h = get_penalty(grid[p], m)
+    lmbd = compute_lmbd_max(f, h, A) * lmbd_values[l]
+    params = h.params_to_dict()
 
-        path = Path(**kwargs, verbose=verbose)
-        results = path.fit(solver, f, h, A)
+    # Valibrate big-M a posteriori (re-fit over full dataset)
+    if "M" in penalty_args:
+        xhat = solve(compiled_clone(f), A, compiled_clone(h), lmbd, **kwargs)
+        params["M"] = factor * np.max(np.abs(xhat))
+    params = {k: float(v) for k, v in params.items()}
 
-        for lmbd, result in results.items():
+    if verbose:
+        print(
+            f"Select params {params} with cv={cv[p,l]:.4e} at lmbd={lmbd:.4e}"
+        )
 
-            nnz = np.count_nonzero(result.x)
-            cvs = 0.0
-            for _ in range(nfolds):
-                fold = np.random.choice(m, m // nfolds, replace=False)
-                A_fold = A[fold, :]
-                y_fold = y[fold]
-                f_fold = eval(datafit)(y_fold)
-                cvs += f_fold.value(A_fold @ result.x)
-
-            best_found = False
-            if np.allclose(cvs, best_cvs, rtol=1e-4):
-                if best_nnz is None or nnz < best_nnz:
-                    best_found = True
-            elif cvs < best_cvs:
-                best_found = True
-
-            if best_found:
-                best_cvs = cvs
-                best_nnz = nnz
-                best_p = deepcopy(params)
-                best_l = lmbd
-                if verbose:
-                    print(
-                        f"  New best at lambda={best_l} with {nnz} nnz and "
-                        f"cvs={best_cvs:.4f}"
-                    )
-
-    return f, eval(penalty)(**best_p), best_l
+    return f, penalty_type(**params), float(lmbd)
 
 
 def get_calibration(A, y, x, type: str, args: dict):

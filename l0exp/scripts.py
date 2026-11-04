@@ -11,7 +11,7 @@ from copy import deepcopy
 # ----- Global variables ----- #
 
 LOC_PATH = "~/Documents/Github/l0exp"
-REM_PATH = "tguyard@narval.alliancecan.ca:scratch"
+REM_PATH = "tguyard@rorqual.alliancecan.ca:links/scratch"
 HOME_DIR = "/home/tguyard"
 VENV_DIR = "/home/tguyard/.venv"
 LOGS_DIR = "/home/tguyard/logs"
@@ -26,7 +26,9 @@ MODULES = ["arrow", "gcc", "gurobi", "mpi4py", "r"]
 # ----- Job definitions helpers ----- #
 
 
-def get_calibration_from_file(path, dataset, datafit, penalty):
+def get_calibration_from_file(
+    path, dataset, datafit, penalty, method="cvx", nfolds=10, factor=1.5
+):
     with open(path, "r") as file:
         reader = csv.DictReader(file)
         for row in reader:
@@ -34,10 +36,16 @@ def get_calibration_from_file(path, dataset, datafit, penalty):
                 row["dataset"] == dataset
                 and row["datafit"] == datafit
                 and row["penalty"] == penalty
+                and row["method"] == method
+                and int(row["nfolds"]) == nfolds
+                and float(row["factor"]) == factor
             ):
                 calibration = {
                     "datafit": datafit,
                     "penalty": penalty,
+                    "method": method,
+                    "nfolds": int(row["nfolds"]),
+                    "factor": float(row["factor"]),
                     "lmbd": float(row["lmbd"]),
                     "datafit_params": ast.literal_eval(row["datafit_params"]),
                     "penalty_params": ast.literal_eval(row["penalty_params"]),
@@ -45,8 +53,8 @@ def get_calibration_from_file(path, dataset, datafit, penalty):
                 return calibration
 
     raise ValueError(
-        "Calibration not found for {}, {}, {}.".format(
-            dataset, datafit, penalty
+        "Calibration not found for {}, {}, {}, {}, {}, {}.".format(
+            dataset, datafit, penalty, method, nfolds, factor
         )
     )
 
@@ -55,62 +63,14 @@ def get_calibration_from_file(path, dataset, datafit, penalty):
 
 
 EXPERIMENTS = [
-    # ----- Section 6.2 calibration ----- #
+    # ----- Section 6.1 experiment ----- #
     {
-        "name": "calibration",
-        "walltime": "04:00:00",
-        "memory": "16G",
-        "configs": [
-            {
-                "experiment": "calibration",
-                "dataset": {
-                    "type": "hardcoded",
-                    "args": {"name": dataset, "normalize": True},
-                },
-                "calibration": {
-                    "type": "cv",
-                    "args": {"datafit": datafit, "penalty": penalty},
-                },
-                "solvers": {},
-                "action": {},
-            }
-            for (dataset, datafit, penalty) in [
-                ("drug", "Leastsquares", "BigmL1L2norm"),
-                ("drug", "Leastsquares", "BigmL2norm"),
-                #
-                ("kits", "Leastsquares", "BigmL1L2norm"),
-                ("kits", "Leastsquares", "BigmL2norm"),
-                #
-                ("gisette", "Logistic", "BigmL1L2norm"),
-                ("gisette", "Logistic", "BigmL2norm"),
-                ("gisette", "Squaredhinge", "BigmL1L2norm"),
-                ("gisette", "Squaredhinge", "BigmL2norm"),
-                #
-                ("dorothea", "Logistic", "BigmL1L2norm"),
-                ("dorothea", "Logistic", "BigmL2norm"),
-                ("dorothea", "Squaredhinge", "BigmL1L2norm"),
-                ("dorothea", "Squaredhinge", "BigmL2norm"),
-                #
-                ("madelon", "Logistic", "BigmL1L2norm"),
-                ("madelon", "Logistic", "BigmL2norm"),
-                ("madelon", "Squaredhinge", "BigmL1L2norm"),
-                ("madelon", "Squaredhinge", "BigmL2norm"),
-                #
-                ("dexter", "Logistic", "BigmL1L2norm"),
-                ("dexter", "Logistic", "BigmL2norm"),
-                ("dexter", "Squaredhinge", "BigmL1L2norm"),
-                ("dexter", "Squaredhinge", "BigmL2norm"),
-            ]
-        ],
-    },
-    # ----- Section 6.2 experiment ----- #
-    {
-        "name": "section_6.2",
+        "name": "section_6.1",
         "walltime": "24:00:00",
         "memory": "256G",
         "configs": [
             {
-                "experiment": "section_6.2",
+                "experiment": "section_6.1",
                 "dataset": {
                     "type": "hardcoded",
                     "args": {"name": dataset, "normalize": True},
@@ -119,12 +79,14 @@ EXPERIMENTS = [
                     "type": "hardcoded",
                     "args": get_calibration_from_file(
                         pathlib.Path(__file__).parent
-                        / "configs"
-                        / "mpc_2025"
-                        / "section_6.2_calibration.csv",
+                        / "datasets"
+                        / "calibrate.csv",
                         dataset,
                         datafit,
                         penalty,
+                        method=method,
+                        nfolds=10,
+                        factor=1.5,
                     ),
                 },
                 "solvers": {
@@ -150,13 +112,48 @@ EXPERIMENTS = [
                     "BigmL1L2norm",
                     ["el0ps", "l0bnb", "gurobi", "mosek", "oa"],
                 ),
-                ("drug", "Leastsquares", "BigmL2norm", ["el0ps", "l0bnb", "gurobi", "mosek", "oa"]),
-                ("kits", "Leastsquares", "BigmL1L2norm", ["el0ps", "l0bnb", "gurobi", "mosek", "oa"]),
-                ("kits", "Leastsquares", "BigmL2norm", ["oa"]),
-                ("gisette", "Logistic", "BigmL1L2norm", ["el0ps", "gurobi", "mosek", "oa"]),
-                ("gisette", "Logistic", "BigmL2norm", ["el0ps", "gurobi", "mosek", "oa"]),
-                ("madelon", "Logistic", "BigmL1L2norm", ["el0ps", "gurobi", "mosek", "oa"]),
-                ("madelon", "Logistic", "BigmL2norm", ["el0ps", "gurobi", "mosek", "oa"]),
+                (
+                    "drug",
+                    "Leastsquares",
+                    "BigmL2norm",
+                    ["el0ps", "l0bnb", "gurobi", "mosek", "oa"],
+                ),
+                (
+                    "kits",
+                    "Leastsquares",
+                    "BigmL1L2norm",
+                    ["el0ps", "l0bnb", "gurobi", "mosek", "oa"],
+                ),
+                (
+                    "kits",
+                    "Leastsquares",
+                    "BigmL2norm",
+                    ["el0ps", "l0bnb", "gurobi", "mosek", "oa"],
+                ),
+                (
+                    "gisette",
+                    "Logistic",
+                    "BigmL1L2norm",
+                    ["el0ps", "gurobi", "mosek", "oa"],
+                ),
+                (
+                    "gisette",
+                    "Logistic",
+                    "BigmL2norm",
+                    ["el0ps", "gurobi", "mosek", "oa"],
+                ),
+                (
+                    "madelon",
+                    "Logistic",
+                    "BigmL1L2norm",
+                    ["el0ps", "gurobi", "mosek", "oa"],
+                ),
+                (
+                    "madelon",
+                    "Logistic",
+                    "BigmL2norm",
+                    ["el0ps", "gurobi", "mosek", "oa"],
+                ),
                 (
                     "dorothea",
                     "Squaredhinge",
@@ -169,19 +166,30 @@ EXPERIMENTS = [
                     "BigmL2norm",
                     ["el0ps", "gurobi", "mosek", "oa"],
                 ),
-                ("dexter", "Squaredhinge", "BigmL1L2norm", ["el0ps", "gurobi", "mosek", "oa"]),
-                ("dexter", "Squaredhinge", "BigmL2norm", ["el0ps", "gurobi", "mosek", "oa"]),
+                (
+                    "dexter",
+                    "Squaredhinge",
+                    "BigmL1L2norm",
+                    ["el0ps", "gurobi", "mosek", "oa"],
+                ),
+                (
+                    "dexter",
+                    "Squaredhinge",
+                    "BigmL2norm",
+                    ["el0ps", "gurobi", "mosek", "oa"],
+                ),
             ]
+            for method in ["omp", "iht", "cvx"]
         ],
     },
-    # ----- Section 6.3 experiment ----- #
+    # ----- Section 6.2 experiment ----- #
     {
-        "name": "section_6.3",
+        "name": "section_6.2",
         "walltime": "01:15:00",
         "memory": "16G",
         "configs": [
             {
-                "experiment": "section_6.3",
+                "experiment": "section_6.2",
                 "dataset": {
                     "type": "mixture",
                     "args": {
@@ -230,14 +238,14 @@ EXPERIMENTS = [
             ]
         ],
     },
-    # ----- Section 6.4 experiment ----- #
+    # ----- Section 6.3 experiment ----- #
     {
-        "name": "section_6.4",
+        "name": "section_6.3",
         "walltime": "05:30:00",
         "memory": "16G",
         "configs": [
             {
-                "experiment": "section_6.4",
+                "experiment": "section_6.3",
                 "dataset": {
                     "type": "mixture",
                     "args": {
@@ -398,7 +406,7 @@ def send():
     print("send")
     cmd_str = " ".join(
         [
-            "rsync -amv",
+            "rsync -amvz",
             "--exclude '.git'",
             "--exclude '.github'",
             "--exclude '.venv'",

@@ -2,16 +2,16 @@ experiment: section_6.1
 
 dataset:
   type: hardcoded
-  args: {name: kits, normalize: true}
+  args: {name: drug, normalize: true}
 
 calibration:
   type: hardcoded
   args:
     datafit       : Leastsquares
-    penalty       : BigmL1L2norm
-    lmbd          : 0.04728410277698789
+    penalty       : BigmL2norm
+    lmbd          : 6.388764414246429
     datafit_params: {}
-    penalty_params: {M: 0.5759839750528222, alpha: 0.1, beta: 1.0}
+    penalty_params: {M: 5.3827753993888035, beta: 0.5186469371627186}
 
 solvers:
   type: ANY

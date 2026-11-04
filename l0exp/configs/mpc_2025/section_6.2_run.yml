@@ -11,33 +11,12 @@ dataset:
     seed        : null
     distrib_name: uniform
     distrib_args: {low: -1.0, high: 1.0}
-    # distrib_name: gaussian
-    # distrib_args: {scale: 1.0}
-    # distrib_name: laplace
-    # distrib_args: {scale: 1.0}
-    # distrib_name: exponential
-    # distrib_args: {scale: 1.0}
-    # distrib_name: halfgaussian
-    # distrib_args: {scale: 1.0}
-    # distrib_name: gausslaplace
-    # distrib_args: {scale1: 1.0, scale2: 1.0}
-
 
 calibration:
   type: mixture
   args:
     distrib_name: uniform
     distrib_args: {low: -1.0, high: 1.0}
-    # distrib_name: gaussian
-    # distrib_args: {scale: 1.0}
-    # distrib_name: laplace
-    # distrib_args: {scale: 1.0}
-    # distrib_name: exponential
-    # distrib_args: {scale: 1.0}
-    # distrib_name: halfgaussian
-    # distrib_args: {scale: 1.0}
-    # distrib_name: gausslaplace
-    # distrib_args: {scale1: 1.0, scale2: 1.0}
 
 solvers:
   el0ps:

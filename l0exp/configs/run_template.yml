@@ -112,13 +112,14 @@ dataset:
 #   'get_calibration_l0learn()' in calibrations.py).
 #
 #   - type: cv
-#   - args: {datafit: <str>, penalty: <str>, verbose: <bool>, time_limit: <float>}
+#   - args: {datafit: <str>, penalty: <str>, method: <str>, nfolds: <int>, bigm_factor: <float>, verbose: <bool>}
 #
-#   Calibrate problem data with exact cross-validation. The 'datafit' and
-#   'penalty' must be valid datafit and penalty names for el0ps
-#   (see 'get_calibration_cv()' in calibrations.py). The 'verbose' and
-#   'time_limit' arguments are passed to el0ps when performing the
-#   cross-validation.
+#   Calibrate problem data with k-fold cross-validation. The 'datafit' and
+#   'penalty' must be valid datafit and penalty names for el0ps. Approximate
+#   solutions are computed with 'method' in {omp, iht, l1}. The Big-M value,
+#   if any, is set to 'factor' times the largest amplitude of the best
+#   approximate solution. See 'get_calibration_cv()' in calibrations.py for
+#   the other optional arguments.
 
 calibration:
   type: mixture
@@ -128,7 +129,7 @@ calibration:
   # type: l0learn
   # args: {datafit: Leastsquares, penalty: BigmL2norm}
   # type: cv
-  # args: {datafit: Leastsquares, penalty: BigmL1L2norm, verbose: true, time_limit: 10.}
+  # args: {datafit: Leastsquares, penalty: BigmL1L2norm, method: omp, verbose: true}
 
 
 ###############################################################################
@@ -192,5 +193,3 @@ action:
   args:
   # type: path
   # args: {lmbd_max: 1.0, lmbd_min: 0.01, lmbd_num: 21}
-
-

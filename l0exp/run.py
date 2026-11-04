@@ -36,8 +36,11 @@ print()
 # Calibrate problem datafit, penalty and l0-norm weight
 print("Calibrating problem...")
 f, h, lmbd = get_calibration(A, y, x, **config["calibration"])
-print(f"  datafit: {f} {f.params_to_dict()}")
-print(f"  penalty: {h} {h.params_to_dict()}")
+f_params = f.params_to_dict()
+del f_params["y"]
+h_params = h.params_to_dict()
+print(f"  datafit: {f} {f_params}")
+print(f"  penalty: {h} {h_params}")
 print(f"  lambda : {lmbd} ({lmbd / compute_lmbd_max(f, h, A):.2e} * lmbd_max)")
 print()
 

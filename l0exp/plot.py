@@ -63,6 +63,7 @@ def get_graphics_data(config: dict):
 
             if result_match:
                 raw_results.append(result_data["results"])
+    print(f"  Found {len(raw_results)} matching result files")
 
     results = {}
     for graphic, graphic_config in config["graphics"].items():
@@ -141,7 +142,7 @@ def get_graphics_data(config: dict):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", type=str, required=True)
-parser.add_argument("--save", action="store_true")
+parser.add_argument("--output", type=str, required=False, default="")
 args = parser.parse_args()
 
 
@@ -157,7 +158,7 @@ graphics_data = get_graphics_data(config)
 
 # graphics_data[graphic][label][xaxis][yaxis]
 
-if args.save:
+if args.output:
 
     for graphic, graphic_data in graphics_data.items():
 
@@ -201,7 +202,7 @@ if args.save:
             table[col_ylabel] = col_yvalue
 
         output_dir = pathlib.Path(__file__).parent / "saves"
-        output_file = f"{config['experiment']}_{graphic}.csv"
+        output_file = f"{args.output}_{graphic}.csv"
         output_path = output_dir / output_file
         if output_path.exists():
             raise FileExistsError(
@@ -242,11 +243,6 @@ else:
                 label=label,
             )
 
-            print(
-                f",{[float(np.mean(v)) for _, v in label_data.items()][0]}",
-                end="",
-            )
-
             if i == 0:
                 global_lines.append(line)
                 global_labels.append(label)
@@ -266,13 +262,13 @@ else:
 
         ax.grid(True)
 
-    # fig.legend(
-    #     global_lines,
-    #     global_labels,
-    #     loc="upper center",
-    #     bbox_to_anchor=(0.5, 0.9),
-    #     ncol=3,
-    # )
-    # plt.suptitle(f"Experiment {config['experiment']}")
-    # plt.tight_layout(rect=[0, 0, 1, 0.75])
-    # plt.show()
+    fig.legend(
+        global_lines,
+        global_labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.9),
+        ncol=3,
+    )
+    plt.suptitle(f"Experiment {config['experiment']}")
+    plt.tight_layout(rect=[0, 0, 1, 0.75])
+    plt.show()
