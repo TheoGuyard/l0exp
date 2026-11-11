@@ -66,11 +66,11 @@ if __name__ == "__main__":
     print(f"Loading dataset...")
     try:
         A, y, x = get_dataset_hardcoded(args.dataset)
-    except ValueError:
+    except FileNotFoundError:
         print("Dataset not found under l0exp/datasets. Fetching it...")
         try:
             A, y, x = get_dataset_realworld(args.dataset)
-        except ValueError:
+        except:
             raise ValueError(f"Fetching of dataset '{args.dataset}' failed.")
 
     print("Running calibration...")
