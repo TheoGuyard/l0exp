@@ -9,6 +9,9 @@ calibration:
   args:
     datafit       : Leastsquares
     penalty       : BigmL2norm
+    method        : cvx
+    nfolds        : 10
+    factor        : 1.5
     lmbd          : 6.388764414246429
     datafit_params: {}
     penalty_params: {M: 5.3827753993888035, beta: 0.5186469371627186}
